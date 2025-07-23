@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Home - Happy Idosos</title>
+</head>
+<body>
+  <h1>Bem-vindo à Home</h1>
+  <p id="boasVindas"></p>
+
+  <div id="acoesAsilo" style="display: none;">
+    <h3>Funções do Asilo</h3>
+    <button>Criar Evento</button>
+    <button>Editar Evento</button>
+  </div>
+
+  <div id="acoesVoluntario" style="display: none;">
+    <h3>Funções do Voluntário</h3>
+    <button>Ver Eventos</button>
+    <button>Enviar Vídeo Tutorial</button>
+  </div>
+
+  <button onclick="logout()">Sair</button>
+
+<script>
+const usuario = JSON.parse(localStorage.getItem("usuario"));
+if (!usuario) {
+    window.location.href = "login.html";
+} else {
+    document.body.innerHTML = `
+        <h2>Bem-vindo, ${usuario.nome}</h2>
+        <p>Tipo de usuário: ${usuario.tipo}</p>
+        ${usuario.tipo === 'asilos' 
+            ? '<button onclick="criarEvento()">Criar Evento</button>' 
+            : '<button onclick="verEventos()">Ver Eventos</button>'}
+        <button onclick="logout()">Sair</button>
+    `;
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "login.html";
+}
+</script>
+
+</body>
+</html>
