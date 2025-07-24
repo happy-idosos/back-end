@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Asilos Próximos</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #map {
+            height: 300px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        #aviso {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 10px;
+            margin: 10px 0 20px 0;
+            border-radius: 4px;
+        }
+
+        #listaAsilos {
+            margin: 0 10px;
+        }
+
+        .asilocard {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .leaflet-popup-content {
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="aviso">
+        <strong>Atenção:</strong> As informações exibidas nesta página são aproximadas e podem estar incorretas.
+        Recomenda-se sempre checar os dados antes de visitar um asilo. Esta ferramenta serve apenas para auxiliar na
+        visualização dos asilos próximos, mas não fornece rotas precisas.
+        Para navegação, copie o endereço do asilo e utilize o mapa do seu celular.
+    </div>
+    <div id="map"></div>
+    <h3>Lista de Asilos Próximos</h3>
+    <div id="listaAsilos"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Define limites do mapa para evitar repetição infinita
+        const map = L.map('map', {
+            maxBounds: [
+                [-85, -180],
+                [85, 180]
+            ],
+            maxBoundsViscosity: 1.0
+        }).setView([0, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        function mostrarAsilos(asilos) {
+            const lista = document.getElementById('listaAsilos');
+            lista.innerHTML = '';
+            asilos.forEach(asil => {
+                L.marker([asil.latitude, asil.longitude]).addTo(map)
+                    .bindPopup(`<strong>${asil.nome}</strong><br>Endereço: ${asil.endereco || 'Não informado'}<br>Email: ${asil.email}<br>Distância: ${asil.distancia_km} km`);
+
+                lista.innerHTML += `
+                    <div class="asilocard">
+                        <strong>${asil.nome}</strong><br>
+                        Endereço: ${asil.endereco || 'Não informado'}<br>
+                        Email: ${asil.email}<br>
+                        Distância aproximada: ${asil.distancia_km} km
+                    </div>
+                `;
+            });
+        }
+
+        // Captura a localização do usuário e centraliza o mapa nela
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+
+                map.setView([lat, lon], 14);
+
+                L.marker([lat, lon]).addTo(map)
+                    .bindPopup('Você está aqui').openPopup();
+
+                fetch('../busca/buscar-asilos.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ latitude: lat, longitude: lon })
+                })
+                .then(res => res.json())
+                .then(asilos => {
+                    mostrarAsilos(asilos);
+                });
+            }, () => {
+                alert('Não foi possível obter sua localização');
+            });
+        } else {
+            alert('Geolocalização não suportada pelo seu navegador.');
+        }
+    </script>
+</body>
+
+</html>
