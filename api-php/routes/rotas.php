@@ -82,3 +82,4 @@ try {
         "file" => $e->getFile(),
         "line" => $e->getLine()
     ]);
+}
