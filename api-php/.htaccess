@@ -8,12 +8,3 @@
     # Redireciona todas as requisições para index.php
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
-
-# Prevenir acesso direto a arquivos sensíveis
-<Files ~ "^\.">
-    Require all denied
-</Files>
-
-<Files "debug.php">
-    Require all denied
-</Files>
