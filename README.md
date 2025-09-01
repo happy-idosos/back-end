@@ -1,116 +1,88 @@
 
 # 🧓 Happy Idosos - Backend
 
-Backend desenvolvido em **PHP procedural com MySQLi**, fornecendo APIs REST para cadastro, autenticação e localização de asilos. O sistema diferencia dois tipos de usuários: **voluntários (CPF)** e **asilos (CNPJ)**.
+## Backend desenvolvido em **PHP em POO COM PDO**, fornecendo APIs REST para cadastro, autenticação e localização de asilos. O sistema diferencia dois tipos de usuários: **voluntários (CPF)** e **asilos (CNPJ)**.
 
----
+## Happy Idosos API
+# Bem-vindo à API Happy Idosos! Este projeto é uma API RESTful desenvolvida em PHP para gerenciar o cadastro de usuários e asilos.
 
-## 📁 Estrutura do Repositório
+Visão Geral
+A API Happy Idosos permite o registro de dois tipos de entidades:
 
+Usuários: Indivíduos que podem interagir com a plataforma.
+Asilos: Instituições que oferecem serviços para idosos.
+A API é construída com foco na simplicidade e na separação de responsabilidades, utilizando controladores para lidar com a lógica de negócio e validadores para garantir a integridade dos dados.
+
+Estrutura do Projeto
 ```
 .
-├── auth/
-│   ├── login.php               # API de login
-│   └── logout.php              # API de logout
-├── busca/
-│   └── buscar-asilos.php       # API para localizar asilos próximos
-├── cadastro/
-│   └── cadastrar-usuario.php   # API de cadastro de usuários
 ├── config/
-│   └── conexao.php             # Configuração e conexão ao banco de dados
-├── funcoes/
-│   └── validadores.php         # Validação de CPF/CNPJ
-├── public/
-│   ├── buscar-asilos.html      # Interface de busca
-│   ├── cadastro.html           # Tela de cadastro
-│   ├── index.html              # Tela inicial após login
-│   ├── login.html              # Tela de login
-├── sql/
-│   └── banco.sql               # Script SQL para criação do banco
+│   ├── connection.php        # Configuração de conexão com o banco de dados
+│   └── cors.php              # Configuração de Cross-Origin Resource Sharing (CORS)
+├── controllers/
+│   ├── CadastroAsiloController.php   # Lógica para cadastro de asilos
+│   └── CadastroUsuarioController.php # Lógica para cadastro de usuários
+├── routes/
+│   └── rotas.php             # Definição das rotas da API
+├── utils/
+│   └── validators.php        # Funções de validação (CPF, CNPJ)
+├── .env                      # Variáveis de ambiente (ex: credenciais do banco de dados)
+├── .gitignore                # Arquivos e diretórios a serem ignorados pelo Git
+├── .htaccess                 # Configurações do servidor Apache (para reescrita de URL)
+├── happy_idosos.sql          # Script SQL para criação do banco de dados
+└── index.php                 # Ponto de entrada da aplicação
 ```
 
----
+Crie o arquivo .env:
+Copie o arquivo .env.example (se existir, caso contrário, crie um) e preencha com suas credenciais de banco de dados.
 
-## 🔐 APIs Implementadas
-
-### `auth/login.php`
-- **Método:** `POST`
-- **Função:** Autentica o usuário via `email` e `senha`.
-- **Retorno:** JSON com dados do usuário autenticado.
-
-### `auth/logout.php`
-- **Método:** `GET`
-- **Função:** Finaliza a sessão e redireciona para o login.
-
-### `busca/buscar-asilos.php`
-- **Método:** `POST`
-- **Função:** Recebe `latitude` e `longitude` e retorna asilos ordenados pela distância.
-
-### `cadastro/cadastrar-usuario.php`
-- **Método:** `POST`
-- **Função:** Cadastra um novo usuário no sistema com validação de dados (incluindo CPF ou CNPJ).
-
----
-
-## 🔗 Integração Frontend
-
-O frontend realiza requisições HTTP utilizando `fetch`. Exemplos:
-
-### Login
-```javascript
-const resposta = await fetch("http://localhost/api-php/auth/login.php", {
-  method: "POST",
-  body: JSON.stringify({ email, senha }),
-  headers: { "Content-Type": "application/json" }
-});
 ```
-
-### Cadastro
-```javascript
-const response = await fetch("../cadastro/cadastrar-usuario.php", {
-  method: "POST",
-  body: JSON.stringify(dadosUsuario),
-  headers: { "Content-Type": "application/json" }
-});
+DB_HOST=localhost
+DB_NAME=happy_idosos
+DB_USER=root
+DB_PASS=
 ```
+Endpoints da API
+A API expõe os seguintes endpoints:
 
-### Busca de Asilos
-```javascript
-fetch('../busca/buscar-asilos.php', {
-  method: 'POST',
-  body: JSON.stringify({ latitude, longitude }),
-  headers: { 'Content-Type': 'application/json' }
-});
-```
+GET /
 
----
+Descrição: Verifica se a API está funcionando.
+Resposta: {"message": "API Happy Idosos está funcionando!"}
+POST /cadastro/usuario
 
-## 🧾 Estrutura do Banco de Dados
+Descrição: Cadastra um novo usuário.
+Corpo da Requisição (JSON):
+{
+"cpf": "123.456.789-00",
+...
+Respostas:
+201 Created: {"status": 201, "message": "Usuário cadastrado com sucesso."}
+400 Bad Request: {"status": 400, "message": "Dados obrigatórios não preenchidos."} ou {"status": 400, "message": "CPF inválido."}
+500 Internal Server Error: {"status": 500, "message": "Erro ao cadastrar usuário."}
+POST /cadastro/asilo
 
-```sql
-CREATE TABLE usuarios (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nome VARCHAR(100) NOT NULL,
-  email VARCHAR(100) NOT NULL UNIQUE,
-  senha VARCHAR(255) NOT NULL,
-  tipo ENUM('voluntario', 'asilos') NOT NULL,
-  documento VARCHAR(20) NOT NULL,
-  endereco TEXT,
-  latitude DECIMAL(10,8),
-  longitude DECIMAL(11,8),
-  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+Descrição: Cadastra um novo asilo.
+Corpo da Requisição (JSON):
+{
+"cnpj": "11.222.333/0001-44",
+...
+Respostas:
+201 Created: {"status": 201, "message": "Asilo cadastrado com sucesso."}
+400 Bad Request: {"status": 400, "message": "Dados obrigatórios não preenchidos."} ou {"status": 400, "message": "CNPJ inválido."}
+500 Internal Server Error: {"status": 500, "message": "Erro ao cadastrar asilo."}
 
----
-
-## 🚀 Melhorias Futuras
-
-- ✅ Validações robustas no frontend
-- ✅ Mensagens de erro mais específicas nas APIs
-- 🔐 Proteção contra SQL Injection, XSS, CSRF e brute force
-- 🧪 Testes automatizados para backend e frontend
-- 🧭 Integração com APIs de geolocalização mais precisas
-- 📄 Documentação com Swagger/Postman
-- 💬 Feedback visual ao usuário em operações (carregamento, erros, sucessos)
-- 🧾 Migração para sessões seguras com PHP ou tokens JWT
+Validação de Entrada Mais Abrangente:
+Sanitização: Além de validar, sanitize os dados de entrada para prevenir ataques como XSS (Cross-Site Scripting) e SQL Injection. Use filter_var() com filtros apropriados ou prepare statements de forma mais rigorosa.
+Validação de Email: Adicione validação de formato de email (filter_var($email, FILTER_VALIDATE_EMAIL)).
+Validação de Telefone: Embora não seja estritamente necessário para a lógica de negócio, validar o formato do telefone pode ser útil.
+Comprimento Mínimo/Máximo: Valide o comprimento mínimo e máximo para campos como nome, email e senha.
+Complexidade da Senha: Implemente regras de complexidade para senhas (mínimo de caracteres, letras maiúsculas/minúsculas, números, símbolos).
+Prevenção de Duplicidade:
+Antes de inserir um novo usuário ou asilo, verifique se o CPF/CNPJ ou email já existem no banco de dados. Isso evita registros duplicados e fornece feedback mais claro ao usuário.
+Rate Limiting:
+Implemente um sistema de rate limiting para proteger seus endpoints contra ataques de força bruta ou uso excessivo.
+HTTPS:
+Sempre use HTTPS em produção para criptografar a comunicação entre o cliente e a API.
+CORS em Produção:
+Em produção, restrinja Access-Control-Allow-Origin para domínios específicos em vez de *.
