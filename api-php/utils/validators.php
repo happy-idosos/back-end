@@ -39,3 +39,24 @@ function validarCNPJ($cnpj)
     }
     return true;
 }
+
+function validarTelefone($telefone)
+{
+    $telefone = preg_replace('/[^0-9]/', '', $telefone);
+    return preg_match('/^\d{10,11}$/', $telefone);
+}
+
+function validarSenha($senha)
+{
+    if (strlen($senha) < 8) return false;
+    if (!preg_match('/[A-Z]/', $senha)) return false;
+    if (!preg_match('/[a-z]/', $senha)) return false;
+    if (!preg_match('/[0-9]/', $senha)) return false;
+    if (!preg_match('/[\W]/', $senha)) return false;
+    return true;
+}
+
+function validarNome($nome)
+{
+    return preg_match('/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/u', $nome);
+}

@@ -21,6 +21,18 @@ class CadastroAsiloController
             return ["status" => 400, "message" => "CNPJ inválido."];
         }
 
+        if (!validarNome($dados['nome'])) {
+            return ["status" => 400, "message" => "Nome inválido."];
+        }
+
+        if (!validarTelefone($dados['telefone'])) {
+            return ["status" => 400, "message" => "Telefone inválido."];
+        }
+
+        if (!validarSenha($dados['senha'])) {
+            return ["status" => 400, "message" => "Senha não atende aos requisitos de segurança."];
+        }
+
         $sql = "INSERT INTO asilos (cnpj, nome, endereco, telefone, email, senha)
                 VALUES (:cnpj, :nome, :endereco, :telefone, :email, :senha)";
         $stmt = $this->conn->prepare($sql);

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../config/connection.php';
+
 class LoginController
 {
     private $conn;
@@ -22,7 +24,7 @@ class LoginController
         $senha = $data['senha'];
 
         try {
-            // 🔹 Verifica primeiro em usuarios
+            // Verifica primeiro em usuarios
             $queryUsuario = "SELECT id_usuario, nome, email, senha FROM usuarios WHERE email = :email";
             $stmtUsuario = $this->conn->prepare($queryUsuario);
             $stmtUsuario->bindParam(':email', $email);
@@ -42,7 +44,7 @@ class LoginController
                 ];
             }
 
-            // 🔹 Verifica em asilos
+            // Verifica em asilos
             $queryAsilo = "SELECT id_asilo, nome, email, senha FROM asilos WHERE email = :email";
             $stmtAsilo = $this->conn->prepare($queryAsilo);
             $stmtAsilo->bindParam(':email', $email);
@@ -62,7 +64,7 @@ class LoginController
                 ];
             }
 
-            // 🔹 Se não encontrou em nenhum
+            // Se não encontrou em nenhum
             return [
                 "status" => 401,
                 "message" => "Credenciais inválidas."
