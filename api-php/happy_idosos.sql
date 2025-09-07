@@ -13,16 +13,30 @@ create table
         senha varchar(255) not null
     );
 
-create table
+CREATE TABLE
     asilos (
-        id_asilo int auto_increment primary key,
-        cnpj varchar(14) unique not null,
-        nome varchar(128) not null,
-        endereco varchar(128),
-        telefone varchar(15),
-        email varchar(128) unique not null,
-        senha varchar(255) not null
+        id_asilo INT AUTO_INCREMENT PRIMARY KEY,
+        cnpj VARCHAR(14) UNIQUE NOT NULL,
+        nome VARCHAR(128) NOT NULL,
+        endereco VARCHAR(255),
+        cidade VARCHAR(100),
+        estado VARCHAR(2),
+        cep VARCHAR(9),
+        latitude DECIMAL(10, 7), -- precisão até ~1 metro
+        longitude DECIMAL(10, 7),
+        telefone VARCHAR(15),
+        email VARCHAR(128) UNIQUE NOT NULL,
+        senha VARCHAR(255) NOT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE reset_senha (
+    id_reset INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    token VARCHAR(64) NOT NULL,
+    expira_em DATETIME NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
+);
 
 -- Tabela de eventos
 create table

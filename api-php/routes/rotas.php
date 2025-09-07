@@ -5,6 +5,8 @@ require_once __DIR__ . '/../controllers/CadastroAsiloController.php';
 require_once __DIR__ . '/../controllers/LoginController.php';
 require_once __DIR__ . '/../controllers/ListagemController.php';
 require_once __DIR__ . '/../controllers/VideoController.php';
+require_once __DIR__ . '/../controllers/FiltraAsiloController.php';
+require_once __DIR__ . '/../controllers/EsqueceuSenhaController.php';
 require_once __DIR__ . '/../config/connection.php';
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -27,6 +29,8 @@ $cadastroAsiloController = new CadastroAsiloController($conn);
 $loginController = new LoginController($conn);
 $listagemController = new ListagemController($conn);
 $videoController = new VideoController($conn);
+$filtraAsiloController = new FiltraAsiloController($conn);
+$esqueceuSenhaController = new EsqueceuSenhaController($conn);
 
 
 // Rotas
@@ -58,6 +62,18 @@ if ($uri == '/api' && $method == 'GET') {
     echo json_encode($result);
 } elseif ($uri == '/api/videos' && $method == 'GET') {
     $result = $videoController->listarVideos();
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/filtra/asilos' && $method == 'POST') {
+    $result = $filtraAsiloController->filtrar($input);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/esqueceu-senha' && $method == 'POST') {
+    $result = $esqueceuSenhaController->solicitarReset($input['email']);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/reset-senha' && $method == 'POST') {
+    $result = $esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']);
     http_response_code($result['status']);
     echo json_encode($result);
 } else {
