@@ -59,10 +59,17 @@ class EsqueceuSenhaController
             $mail->setFrom('pedromedeirosetec02@gmail.com', 'Happy Idosos');
             $mail->addAddress($email, $usuario['nome']);
             $mail->isHTML(true);
-            $mail->Subject = 'Redefinição de senha';
-            $mail->Body = "Olá {$usuario['nome']},<br>Para redefinir sua senha, acesse:<br>
-                <a href='http://localhost/back-end/api-php/api/resetar_senha.html?token=$token'>Redefinir senha</a><br>
-                Este link expira em 1 hora."; // Ajustar link para meu domínio de produção
+            $mail->Subject = 'Redefina sua senha - Happy Idosos';
+            $mail->Body = "
+    Olá {$usuario['nome']},<br><br>
+    Para redefinir sua senha, acesse o link abaixo:<br>
+    <a href=\"http://localhost/back-end/api-php/api/reset-senha?token=$token\">Redefinir senha</a><br><br>
+    
+    Insira no formulário o seu token para realizar a troca:<br>
+    <b>$token</b><br><br>
+    
+    Este link expira em 1 hora.
+"; // Ajustar link para meu domínio de produção
 
             $mail->send();
             return ["status" => 200, "message" => "Email de redefinição enviado."];

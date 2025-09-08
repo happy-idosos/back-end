@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../controllers/ExemploController.php';
 require_once __DIR__ . '/../controllers/CadastroUsuarioController.php';
 require_once __DIR__ . '/../controllers/CadastroAsiloController.php';
@@ -7,8 +8,8 @@ require_once __DIR__ . '/../controllers/ListagemController.php';
 require_once __DIR__ . '/../controllers/VideoController.php';
 require_once __DIR__ . '/../controllers/FiltraAsiloController.php';
 require_once __DIR__ . '/../controllers/EsqueceuSenhaController.php';
-require_once __DIR__ . '/../controllers/EventosController.php';
-require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../controllers/EventoController.php';
+require_once __DIR__ . '/../controllers/ParticipacaoController.php';
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -32,7 +33,8 @@ $listagemController = new ListagemController($conn);
 $videoController = new VideoController($conn);
 $filtraAsiloController = new FiltraAsiloController($conn);
 $esqueceuSenhaController = new EsqueceuSenhaController($conn);
-$eventosController = new EventosController($conn);
+$eventoController = new EventoController($conn);
+$participacaoController = new ParticipacaoController($conn);
 
 
 // Rotas
@@ -74,29 +76,61 @@ if ($uri == '/api' && $method == 'GET') {
     $result = $esqueceuSenhaController->solicitarReset($input['email']);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/resetar_senha' && $method == 'POST') {
+} elseif ($uri == '/api/reset-senha' && $method == 'GET') {
+    // retorna apenas o token para o front validar
+    $token = $_GET['token'] ?? null;
+
+    if (!$token) {
+        http_response_code(400);
+        echo json_encode(["status" => 400, "message" => "Token inválido"]);
+        exit;
+    }
+
+    $stmt = $conn->prepare("SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()");
+    $stmt->bindParam(":token", $token);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        http_response_code(400);
+        echo json_encode(["status" => 400, "message" => "Token inválido ou expirado"]);
+        exit;
+    }
+
+    http_response_code(200);
+    echo json_encode(["status" => 200, "message" => "Token válido", "token" => $token]);
+} elseif ($uri == '/api/reset-senha' && $method == 'POST') {
     $result = $esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/eventos' && $method == 'GET') {
-    $result = $eventosController->listarEventos();
-    http_response_code($result['status']);
-    echo json_encode($result);
 } elseif ($uri == '/api/eventos' && $method == 'POST') {
-    $result = $eventosController->criarEvento(
-        $input['nome_evento'],
-        $input['descricao'],
-        $input['data'],
-        $input['id_usuario']
-    );
+    // Asilo cria evento
+    $result = $eventoController->criar($input);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/eventos/participar' && $method == 'POST') {
-    $result = $eventosController->participarEvento($input['id_usuario'], $input['id_evento']);
+} elseif ($uri == '/api/eventos' && $method == 'GET') {
+    // Lista todos os eventos
+    $result = $eventoController->listar();
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/eventos/participantes' && $method == 'GET') {
-    $result = $eventosController->listarParticipantes($input['id_evento']);
+} elseif (preg_match('#^/api/eventos/([0-9]+)$#', $uri, $matches) && $method == 'GET') {
+    // Detalhes de um evento
+    $result = $eventoController->detalhar($matches[1]);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif (preg_match('#^/api/eventos/([0-9]+)/participar$#', $uri, $matches) && $method == 'POST') {
+    // Usuário se inscreve no evento
+    $result = $participacaoController->participar($matches[1], $input['id_usuario']);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif (preg_match('#^/api/eventos/([0-9]+)/cancelar$#', $uri, $matches) && $method == 'DELETE') {
+    // Usuário cancela participação
+    $result = $participacaoController->cancelar($matches[1], $input['id_usuario']);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif (preg_match('#^/api/eventos/([0-9]+)/participantes$#', $uri, $matches) && $method == 'GET') {
+    // Lista participantes de um evento
+    $result = $participacaoController->listarParticipantes($matches[1]);
     http_response_code($result['status']);
     echo json_encode($result);
 } else {
