@@ -103,34 +103,30 @@ if ($uri == '/api' && $method == 'GET') {
     $result = $esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/eventos' && $method == 'POST') {
-    // Asilo cria evento
-    $result = $eventoController->criar($input);
+} elseif($uri == '/api/eventos' && $method == 'GET'){
+    $result = $eventoController->listarEventos();
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/eventos' && $method == 'GET') {
-    // Lista todos os eventos
-    $result = $eventoController->listar();
+}
+elseif($uri == '/api/eventos/criar' && $method == 'POST'){
+    // Aqui $id_asilo viria do token/autenticação
+    $id_asilo = $input['id_asilo'] ?? null; // simulação
+    $result = $eventoController->criarEvento($id_asilo,$input['titulo'],$input['descricao'],$input['data_evento']);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif (preg_match('#^/api/eventos/([0-9]+)$#', $uri, $matches) && $method == 'GET') {
-    // Detalhes de um evento
-    $result = $eventoController->detalhar($matches[1]);
+}
+elseif($uri == '/api/eventos/participar' && $method == 'POST'){
+    // Aqui $id_usuario viria do token/autenticação
+    $id_usuario = $input['id_usuario'] ?? null; // simulação
+    $id_evento = $input['id_evento'] ?? null;
+    $result = $participacaoController->participarEvento($id_usuario,$id_evento);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif (preg_match('#^/api/eventos/([0-9]+)/participar$#', $uri, $matches) && $method == 'POST') {
-    // Usuário se inscreve no evento
-    $result = $participacaoController->participar($matches[1], $input['id_usuario']);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif (preg_match('#^/api/eventos/([0-9]+)/cancelar$#', $uri, $matches) && $method == 'DELETE') {
-    // Usuário cancela participação
-    $result = $participacaoController->cancelar($matches[1], $input['id_usuario']);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif (preg_match('#^/api/eventos/([0-9]+)/participantes$#', $uri, $matches) && $method == 'GET') {
-    // Lista participantes de um evento
-    $result = $participacaoController->listarParticipantes($matches[1]);
+}
+elseif($uri == '/api/eventos/meus' && $method == 'GET'){
+    // $id_usuario do token
+    $id_usuario = $_GET['id_usuario'] ?? null; // simulação
+    $result = $participacaoController->listarParticipacoes($id_usuario);
     http_response_code($result['status']);
     echo json_encode($result);
 } else {
