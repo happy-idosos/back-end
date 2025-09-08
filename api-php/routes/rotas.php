@@ -7,6 +7,7 @@ require_once __DIR__ . '/../controllers/ListagemController.php';
 require_once __DIR__ . '/../controllers/VideoController.php';
 require_once __DIR__ . '/../controllers/FiltraAsiloController.php';
 require_once __DIR__ . '/../controllers/EsqueceuSenhaController.php';
+require_once __DIR__ . '/../controllers/EventosController.php';
 require_once __DIR__ . '/../config/connection.php';
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -31,6 +32,7 @@ $listagemController = new ListagemController($conn);
 $videoController = new VideoController($conn);
 $filtraAsiloController = new FiltraAsiloController($conn);
 $esqueceuSenhaController = new EsqueceuSenhaController($conn);
+$eventosController = new EventosController($conn);
 
 
 // Rotas
@@ -74,6 +76,27 @@ if ($uri == '/api' && $method == 'GET') {
     echo json_encode($result);
 } elseif ($uri == '/api/reset-senha' && $method == 'POST') {
     $result = $esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/eventos' && $method == 'GET') {
+    $result = $eventosController->listarEventos();
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/eventos' && $method == 'POST') {
+    $result = $eventosController->criarEvento(
+        $input['nome_evento'],
+        $input['descricao'],
+        $input['data'],
+        $input['id_usuario']
+    );
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/eventos/participar' && $method == 'POST') {
+    $result = $eventosController->participarEvento($input['id_usuario'], $input['id_evento']);
+    http_response_code($result['status']);
+    echo json_encode($result);
+} elseif ($uri == '/api/eventos/participantes' && $method == 'GET') {
+    $result = $eventosController->listarParticipantes($input['id_evento']);
     http_response_code($result['status']);
     echo json_encode($result);
 } else {
