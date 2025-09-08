@@ -74,7 +74,7 @@ if ($uri == '/api' && $method == 'GET') {
     $result = $esqueceuSenhaController->solicitarReset($input['email']);
     http_response_code($result['status']);
     echo json_encode($result);
-} elseif ($uri == '/api/reset-senha' && $method == 'POST') {
+} elseif ($uri == '/api/resetar_senha' && $method == 'POST') {
     $result = $esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']);
     http_response_code($result['status']);
     echo json_encode($result);

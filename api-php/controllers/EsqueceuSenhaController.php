@@ -11,6 +11,7 @@ require_once __DIR__ . '/../lib/PHPMailer/src/Exception.php';
 
 class EsqueceuSenhaController
 {
+
     private $conn;
 
     public function __construct($db)
@@ -45,21 +46,22 @@ class EsqueceuSenhaController
 
         // Envia email com link de redefinição usando Gmail SMTP
         $mail = new PHPMailer(true);
+        $env = parse_ini_file(__DIR__ . '/../.env');
         try {
             $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';
+            $mail->Host = $env['SMTP_HOST'];
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'pedromedeirosetec02@gmail.com';
-            $mail->Password   = 'qpwj ekmy jsia afnk';
+            $mail->Username = $env['SMTP_USERNAME'];
+            $mail->Password = $env['SMTP_PASSWORD'];
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = 587;
+            $mail->Port = $env['SMTP_PORT'];
 
             $mail->setFrom('pedromedeirosetec02@gmail.com', 'Happy Idosos');
             $mail->addAddress($email, $usuario['nome']);
             $mail->isHTML(true);
             $mail->Subject = 'Redefinição de senha';
             $mail->Body = "Olá {$usuario['nome']},<br>Para redefinir sua senha, acesse:<br>
-                <a href='http://localhost/back-end/api-php/reset_senha.html?token=$token'>Redefinir senha</a><br>
+                <a href='http://localhost/back-end/api-php/api/resetar_senha.html?token=$token'>Redefinir senha</a><br>
                 Este link expira em 1 hora."; // Ajustar link para meu domínio de produção
 
             $mail->send();
