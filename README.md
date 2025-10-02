@@ -18,3 +18,7 @@ SMTP_PASSWORD=qpwj ekmy jsia afnk
 SMTP_FROM_NAME=Happy Idosos
 SMTP_FROM_EMAIL=pedromedeirosetec02@gmail.com
 ```
+
+cd laravel-api  
+
+php artisan serve
