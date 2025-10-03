@@ -10,6 +10,7 @@ require_once __DIR__ . '/../controllers/FiltraAsiloController.php';
 require_once __DIR__ . '/../controllers/EsqueceuSenhaController.php';
 require_once __DIR__ . '/../controllers/EventoController.php';
 require_once __DIR__ . '/../controllers/ParticipacaoController.php';
+require_once __DIR__ . '/../controllers/ContatoController.php';
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -35,6 +36,7 @@ $filtraAsiloController = new FiltraAsiloController($conn);
 $esqueceuSenhaController = new EsqueceuSenhaController($conn);
 $eventoController = new EventoController($conn);
 $participacaoController = new ParticipacaoController($conn);
+$contatoController = new ContatoController($conn);
 
 
 // Rotas
@@ -127,6 +129,13 @@ elseif($uri == '/api/eventos/meus' && $method == 'GET'){
     // $id_usuario do token
     $id_usuario = $_GET['id_usuario'] ?? null; // simulação
     $result = $participacaoController->listarParticipacoes($id_usuario);
+    http_response_code($result['status']);
+    echo json_encode($result);
+}
+// Rota de contato
+elseif($uri == '/api/contato' && $method == 'POST'){
+    $arquivo = $_FILES['arquivo'] ?? null; // captura arquivo enviado
+    $result = $contatoController->enviar($input, $arquivo);
     http_response_code($result['status']);
     echo json_encode($result);
 } else {

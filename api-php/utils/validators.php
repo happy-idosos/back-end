@@ -60,3 +60,20 @@ function validarNome($nome)
 {
     return preg_match('/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/u', $nome);
 }
+
+function validarEmail($email) {
+    // Remove espaços em branco desnecessários no início e fim
+    $email = trim($email);
+
+    // Usa filter_var para validar o formato do e-mail
+    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+function validarData($data)
+{
+    $d = DateTime::createFromFormat('Y-m-d', $data);
+    return $d && $d->format('Y-m-d') === $data;
+}   

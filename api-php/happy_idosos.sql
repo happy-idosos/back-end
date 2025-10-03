@@ -74,3 +74,13 @@ create table
         foreign key (id_asilo) references asilos (id_asilo) on delete set null,
         foreign key (id_evento) references eventos (id_evento) on delete set null
     );
+
+    CREATE TABLE contatos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    telefone VARCHAR(20) NOT NULL,
+    mensagem TEXT NOT NULL,
+    arquivo VARCHAR(255),
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
