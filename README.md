@@ -1,22 +1,45 @@
 
 # 🧓 Happy Idosos - Backend
 
-## Backend desenvolvido em **PHP em POO COM PDO**, fornecendo APIs REST para cadastro, autenticação e localização de asilos. O sistema diferencia dois tipos de usuários: **voluntários (CPF)** e **asilos (CNPJ)**.
+## Backend desenvolvido em **LARAVEL**, fornecendo APIs REST para cadastro, autenticação e localização de asilos. O sistema diferencia dois tipos de usuários: **voluntários (CPF)** e **asilos (CNPJ)**.
 
 Crie o arquivo .env:
 
 ```
-DB_HOST=localhost
-DB_NAME=happy_idosos
-DB_USER=root
-DB_PASS=
+APP_NAME="Happy Idosos"
+APP_ENV=local
+APP_KEY=base64:PWaqblD4Fo6hIdfkUKTof7SMntZtY6TiJ1H1Xdr80qI=
+APP_DEBUG=true
+APP_URL=http://localhost
 
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=pedromedeirosetec02@gmail.com
-SMTP_PASSWORD=qpwj ekmy jsia afnk
-SMTP_FROM_NAME=Happy Idosos
-SMTP_FROM_EMAIL=pedromedeirosetec02@gmail.com
+LOG_CHANNEL=stack
+LOG_LEVEL=debug
+
+# Banco de Dados (MySQL)
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=happy_idosos
+DB_USERNAME=root
+DB_PASSWORD=
+
+# Sessão
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+
+# Cache
+CACHE_STORE=database
+
+# Email (Laravel usa mailer nativo, não PHPMailer puro)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=pedromedeirosetec02@gmail.com
+MAIL_PASSWORD="qpwj ekmy jsia afnk"
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=pedromedeirosetec02@gmail.com
+MAIL_FROM_NAME="Happy Idosos"
+
 ```
 
 cd laravel-api  
