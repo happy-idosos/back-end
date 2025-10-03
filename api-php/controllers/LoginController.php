@@ -1,14 +1,24 @@
 <?php
-
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use \Firebase\JWT\JWT;
+use \Firebase\JWT\Key;
 
 class LoginController
 {
     private $conn;
+    private $jwtSecret;
 
     public function __construct($conn)
     {
         $this->conn = $conn;
+
+        // Carrega JWT_SECRET do .env ou variáveis de ambiente
+        $this->jwtSecret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? null);
+        if (!$this->jwtSecret) {
+            throw new Exception("JWT_SECRET não definido no ambiente.");
+        }
     }
 
     public function login($data)
@@ -32,16 +42,8 @@ class LoginController
             $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
 
             if ($usuario && password_verify($senha, $usuario['senha'])) {
-                return [
-                    "status" => 200,
-                    "message" => "Login de usuário realizado com sucesso.",
-                    "data" => [
-                        "id" => $usuario['id_usuario'],
-                        "nome" => $usuario['nome'],
-                        "email" => $usuario['email'],
-                        "tipo" => "usuario"
-                    ]
-                ];
+                $token = $this->gerarToken($usuario['id_usuario'], $usuario['nome'], $usuario['email'], "usuario");
+                return $this->respostaSucesso($usuario['id_usuario'], $usuario['nome'], $usuario['email'], "usuario", $token);
             }
 
             // Verifica em asilos
@@ -52,16 +54,8 @@ class LoginController
             $asilo = $stmtAsilo->fetch(PDO::FETCH_ASSOC);
 
             if ($asilo && password_verify($senha, $asilo['senha'])) {
-                return [
-                    "status" => 200,
-                    "message" => "Login de asilo realizado com sucesso.",
-                    "data" => [
-                        "id" => $asilo['id_asilo'],
-                        "nome" => $asilo['nome'],
-                        "email" => $asilo['email'],
-                        "tipo" => "asilo"
-                    ]
-                ];
+                $token = $this->gerarToken($asilo['id_asilo'], $asilo['nome'], $asilo['email'], "asilo");
+                return $this->respostaSucesso($asilo['id_asilo'], $asilo['nome'], $asilo['email'], "asilo", $token);
             }
 
             // Se não encontrou em nenhum
@@ -76,5 +70,37 @@ class LoginController
                 "error" => $e->getMessage()
             ];
         }
+    }
+
+    private function gerarToken($id, $nome, $email, $tipo)
+    {
+        $payload = [
+            "iss" => "happy_idosos_api",
+            "iat" => time(),
+            "exp" => time() + (60*60*24), // 24 horas
+            "data" => [
+                "id" => $id,
+                "nome" => $nome,
+                "email" => $email,
+                "tipo" => $tipo
+            ]
+        ];
+
+        return JWT::encode($payload, $this->jwtSecret, 'HS256');
+    }
+
+    private function respostaSucesso($id, $nome, $email, $tipo, $token)
+    {
+        return [
+            "status" => 200,
+            "message" => $tipo === "usuario" ? "Login de usuário realizado com sucesso." : "Login de asilo realizado com sucesso.",
+            "data" => [
+                "id" => $id,
+                "nome" => $nome,
+                "email" => $email,
+                "tipo" => $tipo,
+                "token" => $token
+            ]
+        ];
     }
 }

@@ -1,1 +1,23 @@
+# Dependências do Composer
+/vendor/
+
+# PHPMailer já está na lib, não é necessário ignorar, mas se for instalado via composer, vendor cobre
+
+# Arquivo de ambiente (credenciais)
 .env
+
+# Arquivos de log do PHP
+*.log
+
+# Arquivos de cache temporários do sistema
+*.cache
+*.tmp
+*.swp
+
+# Arquivos do XAMPP / IDE
+*.idea/
+*.vscode/
+*.DS_Store
+
+# Banco de dados local
+*.sql
