@@ -1,5 +1,5 @@
 <?php
-// filepath: c:\xampp\htdocs\back-end\api-php\controllers\EsqueceuSenhaController.php
+// filepath: controllers/EsqueceuSenhaController.php
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -11,12 +11,29 @@ require_once __DIR__ . '/../lib/PHPMailer/src/Exception.php';
 
 class EsqueceuSenhaController
 {
-
     private $conn;
+    private $smtpHost;
+    private $smtpPort;
+    private $smtpUser;
+    private $smtpPass;
+    private $smtpFrom;
+    private $smtpFromName;
 
     public function __construct($db)
     {
         $this->conn = $db;
+
+        // Carrega variáveis do ambiente
+        $this->smtpHost = getenv('SMTP_HOST') ?: ($_ENV['SMTP_HOST'] ?? '');
+        $this->smtpPort = getenv('SMTP_PORT') ?: ($_ENV['SMTP_PORT'] ?? 587);
+        $this->smtpUser = getenv('SMTP_USERNAME') ?: ($_ENV['SMTP_USERNAME'] ?? '');
+        $this->smtpPass = getenv('SMTP_PASSWORD') ?: ($_ENV['SMTP_PASSWORD'] ?? '');
+        $this->smtpFrom = getenv('SMTP_FROM_EMAIL') ?: ($_ENV['SMTP_FROM_EMAIL'] ?? '');
+        $this->smtpFromName = getenv('SMTP_FROM_NAME') ?: ($_ENV['SMTP_FROM_NAME'] ?? 'Happy Idosos');
+
+        if (!$this->smtpHost || !$this->smtpUser || !$this->smtpPass || !$this->smtpFrom) {
+            throw new Exception("Variáveis SMTP não definidas no ambiente.");
+        }
     }
 
     public function solicitarReset($email)
@@ -44,32 +61,29 @@ class EsqueceuSenhaController
         $stmtToken->bindParam(":expira", $expira);
         $stmtToken->execute();
 
-        // Envia email com link de redefinição usando Gmail SMTP
+        // Envia email
         $mail = new PHPMailer(true);
-        $env = parse_ini_file(__DIR__ . '/../.env');
         try {
             $mail->isSMTP();
-            $mail->Host = $env['SMTP_HOST'];
-            $mail->SMTPAuth   = true;
-            $mail->Username = $env['SMTP_USERNAME'];
-            $mail->Password = $env['SMTP_PASSWORD'];
+            $mail->Host = $this->smtpHost;
+            $mail->SMTPAuth = true;
+            $mail->Username = $this->smtpUser;
+            $mail->Password = $this->smtpPass;
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = $env['SMTP_PORT'];
+            $mail->Port = $this->smtpPort;
 
-            $mail->setFrom('pedromedeirosetec02@gmail.com', 'Happy Idosos');
+            $mail->setFrom($this->smtpFrom, $this->smtpFromName);
             $mail->addAddress($email, $usuario['nome']);
             $mail->isHTML(true);
             $mail->Subject = 'Redefina sua senha - Happy Idosos';
             $mail->Body = "
-    Olá {$usuario['nome']},<br><br>
-    Para redefinir sua senha, acesse o link abaixo:<br>
-    <a href=\"http://localhost/back-end/api-php/api/reset-senha?token=$token\">Redefinir senha</a><br><br>
-    
-    Insira no formulário o seu token para realizar a troca:<br>
-    <b>$token</b><br><br>
-    
-    Este link expira em 1 hora.
-"; // Ajustar link para meu domínio de produção
+                Olá {$usuario['nome']},<br><br>
+                Para redefinir sua senha, acesse o link abaixo:<br>
+                <a href=\"http://localhost/back-end/api-php/api/reset-senha?token=$token\">Redefinir senha</a><br><br>
+                Insira no formulário o seu token para realizar a troca:<br>
+                <b>$token</b><br><br>
+                Este link expira em 1 hora.
+            ";
 
             $mail->send();
             return ["status" => 200, "message" => "Email de redefinição enviado."];
@@ -80,7 +94,6 @@ class EsqueceuSenhaController
 
     public function redefinirSenha($token, $novaSenha)
     {
-        // Verifica se o token é válido e não expirou
         $sql = "SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":token", $token);
@@ -91,7 +104,6 @@ class EsqueceuSenhaController
             return ["status" => 400, "message" => "Token inválido ou expirado."];
         }
 
-        // Atualiza a senha do usuário
         $hashSenha = password_hash($novaSenha, PASSWORD_DEFAULT);
         $sqlUpdate = "UPDATE usuarios SET senha = :senha WHERE id_usuario = :id_usuario";
         $stmtUpdate = $this->conn->prepare($sqlUpdate);
@@ -99,7 +111,6 @@ class EsqueceuSenhaController
         $stmtUpdate->bindParam(":id_usuario", $row['id_usuario']);
         $stmtUpdate->execute();
 
-        // Remove o token usado
         $sqlDelete = "DELETE FROM reset_senha WHERE token = :token";
         $stmtDelete = $this->conn->prepare($sqlDelete);
         $stmtDelete->bindParam(":token", $token);
