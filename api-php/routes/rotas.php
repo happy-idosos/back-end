@@ -134,7 +134,7 @@ elseif($uri == '/api/eventos/meus' && $method == 'GET'){
 }
 // Rota de contato
 elseif($uri == '/api/contato' && $method == 'POST'){
-    $arquivo = $_FILES['arquivo'] ?? null; // captura arquivo enviado
+    $arquivo = $_FILES['arquivo'] ?? null;
     $result = $contatoController->enviar($input, $arquivo);
     http_response_code($result['status']);
     echo json_encode($result);
