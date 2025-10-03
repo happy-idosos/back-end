@@ -6,46 +6,53 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
-    // Registro de usuário ou asilo
+    /**
+     * Registro de usuário ou asilo
+     */
     public function register(Request $request)
     {
         // Validação básica
         $request->validate([
-            'tipo' => 'required|in:voluntario,asilo',
+            'tipo' => ['required', Rule::in(['voluntario', 'asilo'])],
             'nome' => 'required|string|max:255',
-            'email' => 'required|email|unique:usuarios,email',
+            'email' => 'required|email|unique:users,email',
             'senha' => 'required|string|confirmed|min:6',
         ]);
 
         $tipo = $request->tipo;
 
-        // Campos específicos
+        // Validação específica por tipo
         if ($tipo === 'voluntario') {
             $request->validate([
-                'cpf' => 'required|unique:usuarios,cpf',
+                'cpf' => ['required', 'unique:users,cpf'],
+                'data_nascimento' => ['required', 'date'],
             ]);
-            $cpfOuCnpj = $request->cpf;
-            $dataNascimento = $request->data_nascimento ?? null;
+            $cpf = $request->cpf;
+            $cnpj = null;
+            $dataNascimento = $request->data_nascimento;
         } else { // asilo
             $request->validate([
-                'cnpj' => 'required|unique:usuarios,cpf',
+                'cnpj' => ['required', 'unique:users,cnpj'],
             ]);
-            $cpfOuCnpj = $request->cnpj;
+            $cpf = null;
+            $cnpj = $request->cnpj;
             $dataNascimento = null;
         }
 
-        // Cria o usuário
+        // Criação do usuário
         $user = User::create([
             'tipo' => $tipo,
             'nome' => $request->nome,
-            'cpf' => $cpfOuCnpj,
+            'cpf' => $cpf,
+            'cnpj' => $cnpj,
             'telefone' => $request->telefone ?? null,
             'data_nascimento' => $dataNascimento,
             'email' => $request->email,
-            'senha' => Hash::make($request->senha), // hash aqui
+            'senha' => Hash::make($request->senha),
         ]);
 
         return response()->json([
@@ -54,7 +61,9 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // Login
+    /**
+     * Login
+     */
     public function login(Request $request)
     {
         $request->validate([
@@ -68,7 +77,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Credenciais inválidas'], 401);
         }
 
-        // Cria token via Laravel Sanctum
+        // Criação de token via Sanctum
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
