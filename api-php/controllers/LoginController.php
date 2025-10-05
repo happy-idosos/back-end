@@ -3,7 +3,6 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use \Firebase\JWT\JWT;
-use \Firebase\JWT\Key;
 
 class LoginController
 {
@@ -14,8 +13,9 @@ class LoginController
     {
         $this->conn = $conn;
 
-        // Carrega JWT_SECRET do .env ou variáveis de ambiente
-        $this->jwtSecret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? null);
+        // Pega direto do $_ENV carregado no index.php
+        $this->jwtSecret = $_ENV['JWT_SECRET'] ?? null;
+
         if (!$this->jwtSecret) {
             throw new Exception("JWT_SECRET não definido no ambiente.");
         }
@@ -58,7 +58,6 @@ class LoginController
                 return $this->respostaSucesso($asilo['id_asilo'], $asilo['nome'], $asilo['email'], "asilo", $token);
             }
 
-            // Se não encontrou em nenhum
             return [
                 "status" => 401,
                 "message" => "Credenciais inválidas."
@@ -77,7 +76,7 @@ class LoginController
         $payload = [
             "iss" => "happy_idosos_api",
             "iat" => time(),
-            "exp" => time() + (60*60*24), // 24 horas
+            "exp" => time() + (60*60*24),
             "data" => [
                 "id" => $id,
                 "nome" => $nome,

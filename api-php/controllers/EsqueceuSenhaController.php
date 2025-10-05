@@ -5,9 +5,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../config/connection.php';
-require_once __DIR__ . '/../lib/PHPMailer/src/PHPMailer.php';
-require_once __DIR__ . '/../lib/PHPMailer/src/SMTP.php';
-require_once __DIR__ . '/../lib/PHPMailer/src/Exception.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class EsqueceuSenhaController
 {
@@ -19,7 +17,7 @@ class EsqueceuSenhaController
     private $smtpFrom;
     private $smtpFromName;
 
-    public function __construct($db)
+    public function __construct(PDO $db)
     {
         $this->conn = $db;
 
@@ -36,7 +34,7 @@ class EsqueceuSenhaController
         }
     }
 
-    public function solicitarReset($email)
+    public function solicitarReset(string $email): array
     {
         // Verifica se o email existe
         $sql = "SELECT id_usuario, nome FROM usuarios WHERE email = :email";
@@ -49,50 +47,56 @@ class EsqueceuSenhaController
             return ["status" => 404, "message" => "Email não encontrado."];
         }
 
-        // Gera token único
+        // Gera token único e expiração
         $token = bin2hex(random_bytes(16));
         $expira = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
         // Salva token no banco
-        $sqlToken = "INSERT INTO reset_senha (id_usuario, token, expira_em) VALUES (:id_usuario, :token, :expira)";
+        $sqlToken = "INSERT INTO reset_senha (id_usuario, token, expira_em) 
+                     VALUES (:id_usuario, :token, :expira)";
         $stmtToken = $this->conn->prepare($sqlToken);
         $stmtToken->bindParam(":id_usuario", $usuario['id_usuario']);
         $stmtToken->bindParam(":token", $token);
         $stmtToken->bindParam(":expira", $expira);
         $stmtToken->execute();
 
-        // Envia email
-        $mail = new PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host = $this->smtpHost;
-            $mail->SMTPAuth = true;
-            $mail->Username = $this->smtpUser;
-            $mail->Password = $this->smtpPass;
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = $this->smtpPort;
+        // Carrega variáveis do .env
+        $env = parse_ini_file(__DIR__ . '/../.env');
 
-            $mail->setFrom($this->smtpFrom, $this->smtpFromName);
+        // Envia email via PHPMailer (instalado pelo Composer)
+        try {
+            $mail = new PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host       = $env['SMTP_HOST'];
+            $mail->SMTPAuth   = true;
+            $mail->Username   = $env['SMTP_USERNAME'];
+            $mail->Password   = $env['SMTP_PASSWORD'];
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = $env['SMTP_PORT'];
+
+            $mail->setFrom($env['SMTP_FROM_EMAIL'], $env['SMTP_FROM_NAME']);
             $mail->addAddress($email, $usuario['nome']);
             $mail->isHTML(true);
             $mail->Subject = 'Redefina sua senha - Happy Idosos';
+
+            $link = "http://localhost/back-end/api-php/api/reset-senha?token=$token";
             $mail->Body = "
-                Olá {$usuario['nome']},<br><br>
-                Para redefinir sua senha, acesse o link abaixo:<br>
-                <a href=\"http://localhost/back-end/api-php/api/reset-senha?token=$token\">Redefinir senha</a><br><br>
-                Insira no formulário o seu token para realizar a troca:<br>
-                <b>$token</b><br><br>
-                Este link expira em 1 hora.
+                <p>Olá <strong>{$usuario['nome']}</strong>,</p>
+                <p>Para redefinir sua senha, acesse o link abaixo:</p>
+                <p><a href=\"$link\">Redefinir senha</a></p>
+                <p>Ou insira o seguinte token no formulário:</p>
+                <p><b>$token</b></p>
+                <p><small>Este link expira em 1 hora.</small></p>
             ";
 
             $mail->send();
-            return ["status" => 200, "message" => "Email de redefinição enviado."];
+            return ["status" => 200, "message" => "Email de redefinição enviado com sucesso."];
         } catch (Exception $e) {
             return ["status" => 500, "message" => "Erro ao enviar email.", "error" => $mail->ErrorInfo];
         }
     }
 
-    public function redefinirSenha($token, $novaSenha)
+    public function redefinirSenha(string $token, string $novaSenha): array
     {
         $sql = "SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()";
         $stmt = $this->conn->prepare($sql);

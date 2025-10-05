@@ -14,9 +14,12 @@ DB_PASS=
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=pedromedeirosetec02@gmail.com
-SMTP_PASSWORD="qpwj ekmy jsia afnk"
-SMTP_FROM_NAME="Happy Idosos"
+SMTP_PASSWORD=""qpwj ekmy jsia afnk""
+SMTP_FROM_NAME=""Happy Idosos""
 SMTP_FROM_EMAIL=pedromedeirosetec02@gmail.com
+
+JWT_SECRET=57VZok7RCkLdi0IGV4iDLRHmOcZU3Sed0GMjr5egCZc=
+
 
 JWT_SECRET=57VZok7RCkLdi0IGV4iDLRHmOcZU3Sed0GMjr5egCZc=
 
@@ -24,6 +27,4 @@ JWT_SECRET=57VZok7RCkLdi0IGV4iDLRHmOcZU3Sed0GMjr5egCZc=
 
 cd api-php
 
-composer require firebase/php-jwt
-
-composer require vlucas/phpdotenv
+composer install

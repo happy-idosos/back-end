@@ -14,30 +14,30 @@ require_once __DIR__ . '/../controllers/ContatoController.php';
 
 header("Content-Type: application/json; charset=UTF-8");
 
-// Normaliza URI e método
+// --- Normalização da rota ---
 $scriptName = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
 $uri = str_replace($scriptName, '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+$uri = rtrim($uri, '/'); // remove barra no final se existir
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Lê corpo JSON (quando não for GET)
+// --- Lê o body JSON ou fallback para $_POST ---
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input && $method !== 'GET') {
     $input = $_POST;
 }
 
-// Instancia os controllers
-$exemploController = new ExemploController();
+// --- Instancia os controllers ---
+$exemploController       = new ExemploController();
 $cadastroUsuarioController = new CadastroUsuarioController($conn);
-$cadastroAsiloController = new CadastroAsiloController($conn);
-$loginController = new LoginController($conn);
-$listagemController = new ListagemController($conn);
-$videoController = new VideoController($conn);
-$filtraAsiloController = new FiltraAsiloController($conn);
-$esqueceuSenhaController = new EsqueceuSenhaController($conn);
-$eventoController = new EventoController($conn);
-$participacaoController = new ParticipacaoController($conn);
-$contatoController = new ContatoController($conn);
-
+$cadastroAsiloController   = new CadastroAsiloController($conn);
+$loginController           = new LoginController($conn);
+$listagemController        = new ListagemController($conn);
+$videoController           = new VideoController($conn);
+$filtraAsiloController     = new FiltraAsiloController($conn);
+$esqueceuSenhaController   = new EsqueceuSenhaController($conn);
+$eventoController          = new EventoController($conn);
+$participacaoController    = new ParticipacaoController($conn);
+$contatoController         = new ContatoController($conn);
 
 // Rotas
 if ($uri == '/api' && $method == 'GET') {
@@ -93,52 +93,49 @@ if ($uri == '/api' && $method == 'GET') {
     $stmt->execute();
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$row) {
-        http_response_code(400);
-        echo json_encode(["status" => 400, "message" => "Token inválido ou expirado"]);
-        exit;
-    }
+        if (!$row) {
+            resposta(["status" => 400, "message" => "Token inválido ou expirado"], 400);
+        }
+        resposta(["status" => 200, "message" => "Token válido", "token" => $token]);
+        break;
 
-    http_response_code(200);
-    echo json_encode(["status" => 200, "message" => "Token válido", "token" => $token]);
-} elseif ($uri == '/api/reset-senha' && $method == 'POST') {
-    $result = $esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif($uri == '/api/eventos' && $method == 'GET'){
-    $result = $eventoController->listarEventos();
-    http_response_code($result['status']);
-    echo json_encode($result);
+    case ($uri === '/api/reset-senha' && $method === 'POST'):
+        resposta($esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']));
+        break;
+
+    case ($uri === '/api/eventos' && $method === 'GET'):
+        resposta($eventoController->listarEventos());
+        break;
+
+    case ($uri === '/api/eventos/criar' && $method === 'POST'):
+        $id_asilo = $input['id_asilo'] ?? null;
+        resposta($eventoController->criarEvento($id_asilo, $input['titulo'], $input['descricao'], $input['data_evento']));
+        break;
+
+    case ($uri === '/api/eventos/participar' && $method === 'POST'):
+        $id_usuario = $input['id_usuario'] ?? null;
+        $id_evento  = $input['id_evento'] ?? null;
+        resposta($participacaoController->participarEvento($id_usuario, $id_evento));
+        break;
+
+    case ($uri === '/api/eventos/meus' && $method === 'GET'):
+        $id_usuario = $_GET['id_usuario'] ?? null;
+        resposta($participacaoController->listarParticipacoes($id_usuario));
+        break;
+
+    case ($uri === '/api/contato' && $method === 'POST'):
+        $arquivo = $_FILES['arquivo'] ?? null;
+        resposta($contatoController->enviar($input, $arquivo));
+        break;
+
+    default:
+        resposta(["erro" => "Rota não encontrada", "uri" => $uri], 404);
+        break;
 }
-elseif($uri == '/api/eventos/criar' && $method == 'POST'){
-    // Aqui $id_asilo viria do token/autenticação
-    $id_asilo = $input['id_asilo'] ?? null; // simulação
-    $result = $eventoController->criarEvento($id_asilo,$input['titulo'],$input['descricao'],$input['data_evento']);
-    http_response_code($result['status']);
-    echo json_encode($result);
-}
-elseif($uri == '/api/eventos/participar' && $method == 'POST'){
-    // Aqui $id_usuario viria do token/autenticação
-    $id_usuario = $input['id_usuario'] ?? null; // simulação
-    $id_evento = $input['id_evento'] ?? null;
-    $result = $participacaoController->participarEvento($id_usuario,$id_evento);
-    http_response_code($result['status']);
-    echo json_encode($result);
-}
-elseif($uri == '/api/eventos/meus' && $method == 'GET'){
-    // $id_usuario do token
-    $id_usuario = $_GET['id_usuario'] ?? null; // simulação
-    $result = $participacaoController->listarParticipacoes($id_usuario);
-    http_response_code($result['status']);
-    echo json_encode($result);
-}
-// Rota de contato
-elseif($uri == '/api/contato' && $method == 'POST'){
-    $arquivo = $_FILES['arquivo'] ?? null;
-    $result = $contatoController->enviar($input, $arquivo);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} else {
-    http_response_code(404);
-    echo json_encode(["erro" => "Rota não encontrada", "uri" => $uri]);
+
+// --- Função utilitária ---
+function resposta($result, $statusCode = null) {
+    http_response_code($statusCode ?? $result['status'] ?? 200);
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    exit;
 }
