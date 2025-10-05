@@ -1,5 +1,5 @@
 <?php
-// filepath: c:\xampp\htdocs\back-end\api-php\controllers\EsqueceuSenhaController.php
+// filepath: controllers/EsqueceuSenhaController.php
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -10,10 +10,28 @@ require_once __DIR__ . '/../vendor/autoload.php';
 class EsqueceuSenhaController
 {
     private $conn;
+    private $smtpHost;
+    private $smtpPort;
+    private $smtpUser;
+    private $smtpPass;
+    private $smtpFrom;
+    private $smtpFromName;
 
     public function __construct(PDO $db)
     {
         $this->conn = $db;
+
+        // Carrega variáveis do ambiente
+        $this->smtpHost = getenv('SMTP_HOST') ?: ($_ENV['SMTP_HOST'] ?? '');
+        $this->smtpPort = getenv('SMTP_PORT') ?: ($_ENV['SMTP_PORT'] ?? 587);
+        $this->smtpUser = getenv('SMTP_USERNAME') ?: ($_ENV['SMTP_USERNAME'] ?? '');
+        $this->smtpPass = getenv('SMTP_PASSWORD') ?: ($_ENV['SMTP_PASSWORD'] ?? '');
+        $this->smtpFrom = getenv('SMTP_FROM_EMAIL') ?: ($_ENV['SMTP_FROM_EMAIL'] ?? '');
+        $this->smtpFromName = getenv('SMTP_FROM_NAME') ?: ($_ENV['SMTP_FROM_NAME'] ?? 'Happy Idosos');
+
+        if (!$this->smtpHost || !$this->smtpUser || !$this->smtpPass || !$this->smtpFrom) {
+            throw new Exception("Variáveis SMTP não definidas no ambiente.");
+        }
     }
 
     public function solicitarReset(string $email): array
@@ -132,17 +150,7 @@ class EsqueceuSenhaController
 
     public function redefinirSenha(string $token, string $novaSenha): array
     {
-        if (empty($token) || empty($novaSenha)) {
-            return ["status" => 400, "message" => "Token e nova senha são obrigatórios."];
-        }
-
-        if (strlen($novaSenha) < 6) {
-            return ["status" => 400, "message" => "A senha deve ter pelo menos 6 caracteres."];
-        }
-
-        // Verifica se o token é válido e não expirou
-        $sql = "SELECT id_usuario, id_asilo, tipo_usuario FROM reset_senha 
-                WHERE token = :token AND expira_em > NOW()";
+        $sql = "SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":token", $token);
         $stmt->execute();
@@ -152,7 +160,6 @@ class EsqueceuSenhaController
             return ["status" => 400, "message" => "Token inválido ou expirado."];
         }
 
-        // Atualiza a senha na tabela correta
         $hashSenha = password_hash($novaSenha, PASSWORD_DEFAULT);
         
         if ($row['tipo_usuario'] === 'usuario') {
@@ -165,13 +172,9 @@ class EsqueceuSenhaController
 
         $stmtUpdate = $this->conn->prepare($sqlUpdate);
         $stmtUpdate->bindParam(":senha", $hashSenha);
-        $stmtUpdate->bindParam(":id", $id);
-        
-        if (!$stmtUpdate->execute()) {
-            return ["status" => 500, "message" => "Erro ao atualizar senha."];
-        }
+        $stmtUpdate->bindParam(":id_usuario", $row['id_usuario']);
+        $stmtUpdate->execute();
 
-        // Remove o token usado
         $sqlDelete = "DELETE FROM reset_senha WHERE token = :token";
         $stmtDelete = $this->conn->prepare($sqlDelete);
         $stmtDelete->bindParam(":token", $token);
