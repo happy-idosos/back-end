@@ -10,15 +10,14 @@ DB_HOST=localhost
 DB_NAME=happy_idosos
 DB_USER=root
 DB_PASS=
-
+JWT_SECRET=57VZok7RCkLdi0IGV4iDLRHmOcZU3Sed0GMjr5egCZc=
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=pedromedeirosetec02@gmail.com
-SMTP_PASSWORD="qpwj ekmy jsia afnk"
-SMTP_FROM_NAME="Happy Idosos"
+SMTP_PASSWORD=qpwjekmyjsiaafnk
+SMTP_FROM_NAME=HappyIdosos
 SMTP_FROM_EMAIL=pedromedeirosetec02@gmail.com
-
-JWT_SECRET=57VZok7RCkLdi0IGV4iDLRHmOcZU3Sed0GMjr5egCZc=
+SMTP_SECURE=tls
 
 ```
 
