@@ -38,7 +38,7 @@ class FiltraAsiloController {
         return $raioTerra * $c;
     }
 
-    // Método principal que sua rota está chamando
+    // Método principal que a rota está chamando
     public function filtrar($dados) {
         if (empty($dados['cidade']) || empty($dados['estado'])) {
             return ["status" => 400, "message" => "Cidade e estado são obrigatórios."];
@@ -46,7 +46,7 @@ class FiltraAsiloController {
 
         $distanciaMaximaKm = $dados['distancia'] ?? 10;
 
-        // 1. Coordenadas da cidade
+        // Coordenadas da cidade
         $coordenadas = $this->getCoordenadasCidade($dados['cidade'], $dados['estado']);
         if (!$coordenadas) {
             return ["status" => 404, "message" => "Não foi possível localizar a cidade."];
@@ -55,13 +55,13 @@ class FiltraAsiloController {
         $latUser = $coordenadas['lat'];
         $lonUser = $coordenadas['lon'];
 
-        // 2. Buscar todos os asilos no banco
+        // Buscar todos os asilos no banco
         $sql = "SELECT id_asilo, nome, endereco, cidade, estado, latitude, longitude, telefone, email
                 FROM asilos";
         $stmt = $this->conn->query($sql);
         $asilos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 3. Filtrar por distância
+        // Filtrar por distância
         $resultado = [];
         foreach ($asilos as $asilo) {
             if ($asilo['latitude'] && $asilo['longitude']) {
