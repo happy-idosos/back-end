@@ -1,141 +1,191 @@
 <?php
-require_once __DIR__ . '/../config/connection.php';
-require_once __DIR__ . '/../controllers/ExemploController.php';
-require_once __DIR__ . '/../controllers/CadastroUsuarioController.php';
-require_once __DIR__ . '/../controllers/CadastroAsiloController.php';
-require_once __DIR__ . '/../controllers/LoginController.php';
-require_once __DIR__ . '/../controllers/ListagemController.php';
-require_once __DIR__ . '/../controllers/VideoController.php';
-require_once __DIR__ . '/../controllers/FiltraAsiloController.php';
-require_once __DIR__ . '/../controllers/EsqueceuSenhaController.php';
-require_once __DIR__ . '/../controllers/EventoController.php';
-require_once __DIR__ . '/../controllers/ParticipacaoController.php';
-require_once __DIR__ . '/../controllers/ContatoController.php';
+// api-php/routes/rotas.php
 
-header("Content-Type: application/json; charset=UTF-8");
-
-// --- Normalização da rota ---
-$scriptName = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
-$uri = str_replace($scriptName, '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-$uri = rtrim($uri, '/'); // remove barra no final se existir
-$method = $_SERVER['REQUEST_METHOD'];
-
-// --- Lê o body JSON ou fallback para $_POST ---
-$input = json_decode(file_get_contents('php://input'), true);
-if (!$input && $method !== 'GET') {
-    $input = $_POST;
+// Carrega todos os controllers automaticamente 
+foreach (glob(__DIR__ . '/../controllers/*.php') as $file) {
+    require_once $file;
 }
 
-// --- Instancia os controllers ---
-$exemploController       = new ExemploController();
-$cadastroUsuarioController = new CadastroUsuarioController($conn);
-$cadastroAsiloController   = new CadastroAsiloController($conn);
-$loginController           = new LoginController($conn);
-$listagemController        = new ListagemController($conn);
-$videoController           = new VideoController($conn);
-$filtraAsiloController     = new FiltraAsiloController($conn);
-$esqueceuSenhaController   = new EsqueceuSenhaController($conn);
-$eventoController          = new EventoController($conn);
-$participacaoController    = new ParticipacaoController($conn);
-$contatoController         = new ContatoController($conn);
+// Garante que $conn (PDO) esteja disponível
+if (!isset($conn) && isset($GLOBALS['conn'])) {
+    $conn = $GLOBALS['conn'];
+}
 
-// Rotas
-if ($uri == '/api' && $method == 'GET') {
-    $exemploController->index();
-} elseif ($uri == '/api/cadastro/usuario' && $method == 'POST') {
-    $result = $cadastroUsuarioController->cadastrar($input);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/cadastro/asilo' && $method == 'POST') {
-    $result = $cadastroAsiloController->cadastrar($input);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/login' && $method == 'POST') {
-    $result = $loginController->login($input);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/usuarios' && $method == 'GET') {
-    $result = $listagemController->listarUsuarios();
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/asilos' && $method == 'GET') {
-    $result = $listagemController->listarAsilos();
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/videos' && $method == 'POST') {
-    $result = $videoController->uploadVideo($_FILES, $input);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/videos' && $method == 'GET') {
-    $result = $videoController->listarVideos();
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/filtra/asilos' && $method == 'POST') {
-    $result = $filtraAsiloController->filtrar($input);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/esqueceu-senha' && $method == 'POST') {
-    $result = $esqueceuSenhaController->solicitarReset($input['email']);
-    http_response_code($result['status']);
-    echo json_encode($result);
-} elseif ($uri == '/api/reset-senha' && $method == 'GET') {
-    // retorna apenas o token para o front validar
-    $token = $_GET['token'] ?? null;
+// Instancia controllers
+$exemploController         = class_exists('ExemploController') ? new ExemploController() : null;
+$cadastroUsuarioController = class_exists('CadastroUsuarioController') ? new CadastroUsuarioController($conn) : null;
+$cadastroAsiloController   = class_exists('CadastroAsiloController') ? new CadastroAsiloController($conn) : null;
+$loginController           = class_exists('LoginController') ? new LoginController($conn) : null;
+$listagemController        = class_exists('ListagemController') ? new ListagemController($conn) : null;
+$videoController           = class_exists('VideoController') ? new VideoController($conn) : null;
+$filtraAsiloController     = class_exists('FiltraAsiloController') ? new FiltraAsiloController($conn) : null;
+$esqueceuSenhaController   = class_exists('EsqueceuSenhaController') ? new EsqueceuSenhaController($conn) : null;
+$eventoController          = class_exists('EventoController') ? new EventoController($conn) : null;
+$participacaoController    = class_exists('ParticipacaoController') ? new ParticipacaoController($conn) : null;
+$contatoController         = class_exists('ContatoController') ? new ContatoController($conn) : null;
 
-    if (!$token) {
-        http_response_code(400);
-        echo json_encode(["status" => 400, "message" => "Token inválido"]);
-        exit;
+// Helpers 
+if (!function_exists('getJsonInput')) {
+    function getJsonInput(): array
+    {
+        $raw = file_get_contents('php://input');
+        $json = json_decode($raw, true);
+        if (is_array($json)) return $json;
+        // fallback to POST (form-data) if JSON is not present
+        return $_POST ?? [];
     }
-
-    $stmt = $conn->prepare("SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()");
-    $stmt->bindParam(":token", $token);
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$row) {
-            resposta(["status" => 400, "message" => "Token inválido ou expirado"], 400);
-        }
-        resposta(["status" => 200, "message" => "Token válido", "token" => $token]);
-        break;
-
-    case ($uri === '/api/reset-senha' && $method === 'POST'):
-        resposta($esqueceuSenhaController->redefinirSenha($input['token'], $input['novaSenha']));
-        break;
-
-    case ($uri === '/api/eventos' && $method === 'GET'):
-        resposta($eventoController->listarEventos());
-        break;
-
-    case ($uri === '/api/eventos/criar' && $method === 'POST'):
-        $id_asilo = $input['id_asilo'] ?? null;
-        resposta($eventoController->criarEvento($id_asilo, $input['titulo'], $input['descricao'], $input['data_evento']));
-        break;
-
-    case ($uri === '/api/eventos/participar' && $method === 'POST'):
-        $id_usuario = $input['id_usuario'] ?? null;
-        $id_evento  = $input['id_evento'] ?? null;
-        resposta($participacaoController->participarEvento($id_usuario, $id_evento));
-        break;
-
-    case ($uri === '/api/eventos/meus' && $method === 'GET'):
-        $id_usuario = $_GET['id_usuario'] ?? null;
-        resposta($participacaoController->listarParticipacoes($id_usuario));
-        break;
-
-    case ($uri === '/api/contato' && $method === 'POST'):
-        $arquivo = $_FILES['arquivo'] ?? null;
-        resposta($contatoController->enviar($input, $arquivo));
-        break;
-
-    default:
-        resposta(["erro" => "Rota não encontrada", "uri" => $uri], 404);
-        break;
 }
 
-// --- Função utilitária ---
-function resposta($result, $statusCode = null) {
-    http_response_code($statusCode ?? $result['status'] ?? 200);
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
-    exit;
+if (!function_exists('safeCall')) {
+    /**
+     * Executa callback com try/catch e retorna um array padronizado de erro em caso de exception.
+     */
+    function safeCall(callable $fn)
+    {
+        try {
+            return $fn();
+        } catch (Throwable $e) {
+            // Em desenvolvimento pode expor $e->getMessage(); em produção registre em log e retorne mensagem genérica
+            return [
+                'status' => 500,
+                'error'  => 'Erro interno no servidor',
+                'detail' => $e->getMessage()
+            ];
+        }
+    }
+}
+
+// - Definição de rotas (method, uri, handler) -
+// Atenção: as URIs devem ter barra inicial, ex: '/api', '/api/usuarios'
+$routes = [
+    // Root / health
+    ['GET',  '/',                function() use ($exemploController) {
+        return safeCall(fn() => ['status' => 200, 'message' => 'API funcionando corretamente']);
+    }],
+
+    ['GET',  '/api',             function() use ($exemploController) {
+        return safeCall(fn() => method_exists($exemploController, 'index') ? $exemploController->index() : ['status'=>200,'message'=>'API ok']);
+    }],
+
+    // Cadastro
+    ['POST', '/api/cadastro/usuario', function() use ($cadastroUsuarioController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $cadastroUsuarioController->cadastrar($input));
+    }],
+    ['POST', '/api/cadastro/asilo', function() use ($cadastroAsiloController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $cadastroAsiloController->cadastrar($input));
+    }],
+
+    // Login
+    ['POST', '/api/login', function() use ($loginController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $loginController->login($input));
+    }],
+
+    // Listagens
+    ['GET', '/api/usuarios', function() use ($listagemController) {
+        return safeCall(fn() => $listagemController->listarUsuarios());
+    }],
+    ['GET', '/api/asilos', function() use ($listagemController) {
+        return safeCall(fn() => $listagemController->listarAsilos());
+    }],
+
+    // Vídeos
+    ['POST', '/api/videos', function() use ($videoController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $videoController->uploadVideo($_FILES ?? [], $input));
+    }],
+    ['GET', '/api/videos', function() use ($videoController) {
+        return safeCall(fn() => $videoController->listarVideos());
+    }],
+
+    // Filtrar Asilos
+    ['POST', '/api/filtra/asilos', function() use ($filtraAsiloController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $filtraAsiloController->filtrar($input));
+    }],
+
+    // Recuperação de senha
+    ['POST', '/api/esqueceu-senha', function() use ($esqueceuSenhaController) {
+        $input = getJsonInput();
+        $email = $input['email'] ?? null;
+        return safeCall(fn() => $esqueceuSenhaController->solicitarReset($email));
+    }],
+    ['POST', '/api/reset-senha', function() use ($esqueceuSenhaController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $esqueceuSenhaController->redefinirSenha($input['token'] ?? null, $input['novaSenha'] ?? null));
+    }],
+    ['GET', '/api/reset-senha', function() use ($conn) {
+        // valida token via query string ?token=...
+        $token = $_GET['token'] ?? null;
+        if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
+        $stmt = $conn->prepare("SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()");
+        $stmt->bindParam(":token", $token);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return ['status' => 400, 'message' => 'Token inválido ou expirado'];
+        return ['status' => 200, 'message' => 'Token válido', 'token' => $token];
+    }],
+
+    // Eventos / Participações
+    ['GET', '/api/eventos', function() use ($eventoController) {
+        return safeCall(fn() => $eventoController->listarEventos());
+    }],
+    ['POST', '/api/eventos/criar', function() use ($eventoController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $eventoController->criarEvento($input['id_asilo'] ?? null, $input['titulo'] ?? null, $input['descricao'] ?? null, $input['data_evento'] ?? null));
+    }],
+    ['POST', '/api/eventos/participar', function() use ($participacaoController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $participacaoController->participarEvento($input['id_usuario'] ?? null, $input['id_evento'] ?? null));
+    }],
+    ['GET', '/api/eventos/meus', function() use ($participacaoController) {
+        $id_usuario = $_GET['id_usuario'] ?? null;
+        return safeCall(fn() => $participacaoController->listarParticipacoes($id_usuario));
+    }],
+
+    // Contato (com arquivo)
+    ['POST', '/api/contato', function() use ($contatoController) {
+        $input = getJsonInput();
+        $arquivo = $_FILES['arquivo'] ?? null;
+        return safeCall(fn() => $contatoController->enviar($input, $arquivo));
+    }],
+];
+
+//  Implementação da função route() (evita Undefined function) 
+if (!function_exists('route')) {
+    /**
+     * route()
+     * @param string $method HTTP method (GET, POST, ...)
+     * @param string $uri    URI normalizada (ex: '/api/usuarios')
+     * @return array|false Resultado da rota ou false se não encontrada
+     */
+    function route(string $method, string $uri)
+    {
+        global $routes;
+
+        // Normaliza uri: vazio -> '/'
+        if ($uri === '' || $uri === null) $uri = '/';
+
+        // Garante barra inicial
+        if ($uri[0] !== '/') $uri = '/' . $uri;
+
+        foreach ($routes as $r) {
+            [$m, $u, $handler] = $r;
+            if (strtoupper($method) !== strtoupper($m)) continue;
+            // rota exata
+            if ($u === $uri) {
+                // executa retorno do handler
+                $res = $handler();
+                // se o handler retornar null ou true/false, converte em resposta uniforme
+                if (is_null($res)) {
+                    return ['status' => 204, 'message' => 'Sem conteúdo'];
+                }
+                return $res;
+            }
+        }
+
+        return false; // não encontrou a rota
+    }
 }

@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /back-end/api-php/
+
+# Ignora arquivos e diretórios reais
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Redireciona todas as outras requisições para index.php
+RewriteRule ^ index.php [L,QSA]
