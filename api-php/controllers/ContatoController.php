@@ -10,7 +10,7 @@ class ContatoController
 {
     private $conn;
     private $uploadDir = __DIR__ . '/../uploads/';
-    private $emailDestino = "contato@happyidosos.org";
+    private $emailDestino = "pedromedeirosetec02@gmail.com";
 
     private $smtpHost;
     private $smtpPort;
