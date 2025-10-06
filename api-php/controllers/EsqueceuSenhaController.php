@@ -150,7 +150,19 @@ class EsqueceuSenhaController
 
     public function redefinirSenha(string $token, string $novaSenha): array
     {
-        $sql = "SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()";
+        if (empty($token) || empty($novaSenha)) {
+            return ["status" => 400, "message" => "Token e nova senha são obrigatórios."];
+        }
+
+        // ✅ CORREÇÃO: Buscar dados completos do token
+        $sql = "SELECT rs.*, 
+                       u.id_usuario, u.nome as usuario_nome,
+                       a.id_asilo, a.nome as asilo_nome 
+                FROM reset_senha rs
+                LEFT JOIN usuarios u ON rs.id_usuario = u.id_usuario
+                LEFT JOIN asilos a ON rs.id_asilo = a.id_asilo
+                WHERE rs.token = :token AND rs.expira_em > NOW()";
+        
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":token", $token);
         $stmt->execute();
@@ -162,19 +174,24 @@ class EsqueceuSenhaController
 
         $hashSenha = password_hash($novaSenha, PASSWORD_DEFAULT);
         
+        // ✅ CORREÇÃO: Usar o tipo_usuario para determinar qual tabela atualizar
         if ($row['tipo_usuario'] === 'usuario') {
             $sqlUpdate = "UPDATE usuarios SET senha = :senha WHERE id_usuario = :id";
-            $id = $row['id_usuario'];
+            $stmtUpdate = $this->conn->prepare($sqlUpdate);
+            $stmtUpdate->bindParam(":senha", $hashSenha);
+            $stmtUpdate->bindParam(":id", $row['id_usuario']);
         } else {
             $sqlUpdate = "UPDATE asilos SET senha = :senha WHERE id_asilo = :id";
-            $id = $row['id_asilo'];
+            $stmtUpdate = $this->conn->prepare($sqlUpdate);
+            $stmtUpdate->bindParam(":senha", $hashSenha);
+            $stmtUpdate->bindParam(":id", $row['id_asilo']);
         }
 
-        $stmtUpdate = $this->conn->prepare($sqlUpdate);
-        $stmtUpdate->bindParam(":senha", $hashSenha);
-        $stmtUpdate->bindParam(":id_usuario", $row['id_usuario']);
-        $stmtUpdate->execute();
+        if (!$stmtUpdate->execute()) {
+            return ["status" => 500, "message" => "Erro ao atualizar senha."];
+        }
 
+        // Remove token usado
         $sqlDelete = "DELETE FROM reset_senha WHERE token = :token";
         $stmtDelete = $this->conn->prepare($sqlDelete);
         $stmtDelete->bindParam(":token", $token);
@@ -190,7 +207,7 @@ class EsqueceuSenhaController
             return ["status" => 400, "message" => "Token é obrigatório."];
         }
 
-        $sql = "SELECT token, expira_em FROM reset_senha 
+        $sql = "SELECT token, expira_em, tipo_usuario FROM reset_senha 
                 WHERE token = :token AND expira_em > NOW()";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":token", $token);
