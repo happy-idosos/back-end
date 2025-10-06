@@ -71,14 +71,18 @@ class VideoController
         $url = "uploads/videos/" . $fileName;
         $descricao = $data['descricao'] ?? null;
         $titulo = $data['titulo'] ?? 'Vídeo sem título';
+        $tamanhoBytes = $video['size'];
 
         try {
-            $sql = "INSERT INTO midias (nome_midia, descricao, url, id_usuario, id_asilo) 
-                    VALUES (:nome, :descricao, :url, :id_usuario, :id_asilo)";
+            $sql = "INSERT INTO midias (nome_midia, descricao, url, tipo_midia, mime_type, tamanho_bytes, id_usuario, id_asilo) 
+                    VALUES (:nome, :descricao, :url, :tipo_midia, :mime_type, :tamanho_bytes, :id_usuario, :id_asilo)";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':nome', $titulo);
             $stmt->bindValue(':descricao', $descricao);
             $stmt->bindValue(':url', $url);
+            $stmt->bindValue(':tipo_midia', 'video');
+            $stmt->bindValue(':mime_type', $mimeType);
+            $stmt->bindValue(':tamanho_bytes', $tamanhoBytes);
             
             // Define quem enviou o vídeo
             if ($user->tipo === 'usuario') {
@@ -99,6 +103,8 @@ class VideoController
                     "nome" => $titulo,
                     "url" => $url,
                     "descricao" => $descricao,
+                    "tamanho_mb" => round($tamanhoBytes / (1024 * 1024), 2),
+                    "mime_type" => $mimeType,
                     "enviado_por" => $user->nome
                 ]
             ];
@@ -127,7 +133,10 @@ class VideoController
                         m.nome_midia, 
                         m.descricao, 
                         m.url, 
-                        m.data,
+                        m.tipo_midia,
+                        m.mime_type,
+                        m.tamanho_bytes,
+                        m.criado_em,
                         COALESCE(u.nome, a.nome) as autor_nome,
                         CASE 
                             WHEN m.id_usuario IS NOT NULL THEN 'usuario'
@@ -136,11 +145,16 @@ class VideoController
                     FROM midias m
                     LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
                     LEFT JOIN asilos a ON m.id_asilo = a.id_asilo
-                    WHERE m.url LIKE 'uploads/videos/%'
-                    ORDER BY m.data DESC";
+                    WHERE m.tipo_midia = 'video'
+                    ORDER BY m.criado_em DESC";
             
             $stmt = $this->conn->query($sql);
             $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Formata tamanho em MB
+            foreach ($videos as &$video) {
+                $video['tamanho_mb'] = round($video['tamanho_bytes'] / (1024 * 1024), 2);
+            }
 
             return [
                 "status" => 200,
