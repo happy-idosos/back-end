@@ -91,28 +91,6 @@ $routes = [
         return safeCall(fn() => $listagemController->listarAsilos());
     }],
 
-// No seu arquivo de rotas, adicione:
-
-// Servir arquivos de vídeo
-['GET', '/api/videos/arquivo/{filename}', function ($filename) use ($videoController) {
-    return safeCall(fn() => $videoController->servirVideo($filename));
-}],
-
-// Suas rotas atuais de vídeo (já existentes):
-['POST', '/api/videos', function () use ($videoController) {
-    $input = getJsonInput();
-    return safeCall(fn() => $videoController->uploadVideo($_FILES ?? [], $input));
-}],
-['GET', '/api/videos', function () use ($videoController) {
-    return safeCall(fn() => $videoController->listarVideos());
-}],
-['GET', '/api/videos/{id}', function ($id) use ($videoController) {
-    return safeCall(fn() => $videoController->buscarVideo($id));
-}],
-['DELETE', '/api/videos/{id}', function ($id) use ($videoController) {
-    return safeCall(fn() => $videoController->deletarVideo($id));
-}],
-
     // Filtrar Asilos
     ['POST', '/api/filtra/asilos', function () use ($filtraAsiloController) {
         $input = getJsonInput();
@@ -164,7 +142,38 @@ $routes = [
         $arquivo = $_FILES['arquivo'] ?? null;
         return safeCall(fn() => $contatoController->enviar($input, $arquivo));
     }],
+
+    // VideoController - Upload e Listagem
+['POST', '/api/videos/upload', function () use ($videoController) {
+    $files = $_FILES ?? [];
+    $input = $_POST ?? []; // 'descricao' enviado via form-data
+    return safeCall(fn() => $videoController->uploadVideo($files, $input));
+}],
+
+['GET', '/api/videos', function () use ($videoController) {
+    return safeCall(fn() => $videoController->listarVideos());
+}],
+
+['POST', '/api/logout', function () {
+    return safeCall(function() {
+        session_start();
+        $_SESSION = [];
+        if (ini_get("session.use_cookies")) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $params["path"], $params["domain"],
+                $params["secure"], $params["httponly"]
+            );
+        }
+        session_destroy();
+        return ['status' => 200, 'message' => 'Logout realizado com sucesso'];
+    });
+}],
+
+
 ];
+
+
 
 //  Implementação da função route() (evita Undefined function) 
 if (!function_exists('route')) {
