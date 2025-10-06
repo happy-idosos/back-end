@@ -14,6 +14,15 @@ class VideoController
     // Upload de vídeo
     public function uploadVideo($files, $data)
     {
+        // Headers CORS
+        header('Access-Control-Allow-Origin: http://localhost:3000');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+        
+        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+            exit(0);
+        }
+
         if (!isset($files['video']) || $files['video']['error'] !== UPLOAD_ERR_OK) {
             return [
                 "status" => 400,
@@ -22,12 +31,12 @@ class VideoController
         }
 
         $video = $files['video'];
-        $allowedTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+        $allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov'];
 
         if (!in_array($video['type'], $allowedTypes)) {
             return [
                 "status" => 400,
-                "message" => "Formato de vídeo inválido. Permitidos: MP4, WEBM, OGG."
+                "message" => "Formato de vídeo inválido. Permitidos: MP4, WEBM, OGG, AVI, MOV."
             ];
         }
 
@@ -70,6 +79,11 @@ class VideoController
                 ]
             ];
         } catch (Exception $e) {
+            // Remove o arquivo se houve erro no banco
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            
             return [
                 "status" => 500,
                 "message" => "Erro ao salvar vídeo no banco de dados.",
@@ -81,8 +95,14 @@ class VideoController
     // Listagem do feed de vídeos
     public function listarVideos()
     {
+        // Headers CORS
+        header('Access-Control-Allow-Origin: http://localhost:3000');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
         try {
-            $sql = "SELECT id_midia, nome_midia, descricao, url, data FROM midias WHERE url LIKE 'uploads/videos/%' ORDER BY id_midia DESC";
+            // Usando data_criacao que adicionamos na tabela
+            $sql = "SELECT id_midia, nome_midia, descricao, url, data_criacao as data FROM midias WHERE url LIKE 'uploads/videos/%' ORDER BY id_midia DESC";
             $stmt = $this->conn->query($sql);
 
             $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
