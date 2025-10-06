@@ -88,15 +88,18 @@ class VideoController
      * Listagem dos vídeos (feed)
      * Retorna: arquivo, descricao
      */
-    public function listarVideos()
-    {
-        try {
-            $sql = "SELECT url AS arquivo, descricao 
-                    FROM midias
-                    WHERE url LIKE 'uploads/videos/%'
-                    ORDER BY id_midia DESC";
+public function listarVideos()
+{
+    try {
+        $sql = "SELECT url AS arquivo, descricao FROM midias WHERE url LIKE 'uploads/videos/%' ORDER BY id_midia DESC";
 
-            $stmt = $this->conn->query($sql);
+        // 🧩 Debug temporário
+        error_log("[DEBUG SQL] " . $sql);
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+        error_log("[DEBUG ORIGEM] " . json_encode($backtrace));
+
+        $stmt = $this->conn->prepare($sql);
+
             $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             return [
