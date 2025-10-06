@@ -84,3 +84,4 @@ create table
     arquivo VARCHAR(255),
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
