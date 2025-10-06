@@ -1,16 +1,22 @@
-CREATE DATABASE happy_idosos;
+CREATE DATABASE IF NOT EXISTS happy_idosos;
 USE happy_idosos;
 
-create table usuarios (
-    id_usuario int auto_increment primary key,
-    cpf varchar(11) unique not null,
-    nome varchar(128) not null,
-    telefone varchar(15),
-    data_nascimento date,
-    email varchar(128) unique not null,
-    senha varchar(255) not null
+-- Tabela de usuários
+CREATE TABLE usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    cpf VARCHAR(11) UNIQUE NOT NULL,
+    nome VARCHAR(128) NOT NULL,
+    telefone VARCHAR(15),
+    data_nascimento DATE,
+    email VARCHAR(128) UNIQUE NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_cpf (cpf)
 );
 
+-- Tabela de asilos
 CREATE TABLE asilos (
     id_asilo INT AUTO_INCREMENT PRIMARY KEY,
     cnpj VARCHAR(14) UNIQUE NOT NULL,
@@ -24,10 +30,14 @@ CREATE TABLE asilos (
     telefone VARCHAR(15),
     email VARCHAR(128) UNIQUE NOT NULL,
     senha VARCHAR(255) NOT NULL,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_cnpj (cnpj),
+    INDEX idx_cidade (cidade)
 );
 
--- ✅ TABELA CORRIGIDA - AGORA COM SUPORTE PARA ASILOS
+-- Tabela de reset de senha (suporta usuários e asilos)
 CREATE TABLE reset_senha (
     id_reset INT AUTO_INCREMENT PRIMARY KEY,
     id_usuario INT NULL,
@@ -42,37 +52,59 @@ CREATE TABLE reset_senha (
     INDEX idx_expira (expira_em)
 );
 
-create table eventos (
-    id_evento int auto_increment primary key,
-    titulo varchar(128) not null,
-    descricao text,
-    data_evento datetime not null,
-    id_asilo int not null,
-    foreign key (id_asilo) references asilos (id_asilo) on delete cascade
+-- Tabela de eventos
+CREATE TABLE eventos (
+    id_evento INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(128) NOT NULL,
+    descricao TEXT,
+    data_evento DATETIME NOT NULL,
+    id_asilo INT NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_asilo) REFERENCES asilos(id_asilo) ON DELETE CASCADE,
+    INDEX idx_data_evento (data_evento),
+    INDEX idx_asilo (id_asilo)
 );
 
-create table participacoes (
-    id_participacao int auto_increment primary key,
-    id_evento int not null,
-    id_usuario int not null,
-    data_inscricao timestamp default current_timestamp,
-    foreign key (id_evento) references eventos (id_evento) on delete cascade,
-    foreign key (id_usuario) references usuarios (id_usuario) on delete cascade
+-- Tabela de participações em eventos
+CREATE TABLE participacoes (
+    id_participacao INT AUTO_INCREMENT PRIMARY KEY,
+    id_evento INT NOT NULL,
+    id_usuario INT NOT NULL,
+    data_inscricao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_evento) REFERENCES eventos(id_evento) ON DELETE CASCADE,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+    UNIQUE KEY unique_participacao (id_evento, id_usuario),
+    INDEX idx_evento (id_evento),
+    INDEX idx_usuario (id_usuario)
 );
 
-create table midias (
-    id_midia int auto_increment primary key,
-    nome_midia varchar(128),
-    descricao varchar(255),
-    url varchar(255),
-    id_usuario int,
-    id_asilo int,
-    id_evento int,
-    foreign key (id_usuario) references usuarios (id_usuario) on delete set null,
-    foreign key (id_asilo) references asilos (id_asilo) on delete set null,
-    foreign key (id_evento) references eventos (id_evento) on delete set null
+-- Tabela de mídias (vídeos, imagens, etc) - CORRIGIDA
+CREATE TABLE midias (
+    id_midia INT AUTO_INCREMENT PRIMARY KEY,
+    nome_midia VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    url VARCHAR(500) NOT NULL,
+    tipo_midia ENUM('video', 'imagem', 'audio', 'documento') DEFAULT 'video',
+    mime_type VARCHAR(100),
+    tamanho_bytes BIGINT,
+    duracao_segundos INT,
+    id_usuario INT NULL,
+    id_asilo INT NULL,
+    id_evento INT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+    FOREIGN KEY (id_asilo) REFERENCES asilos(id_asilo) ON DELETE SET NULL,
+    FOREIGN KEY (id_evento) REFERENCES eventos(id_evento) ON DELETE SET NULL,
+    INDEX idx_tipo (tipo_midia),
+    INDEX idx_usuario (id_usuario),
+    INDEX idx_asilo (id_asilo),
+    INDEX idx_evento (id_evento),
+    INDEX idx_criado (criado_em)
 );
 
+-- Tabela de contatos
 CREATE TABLE contatos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
@@ -80,5 +112,9 @@ CREATE TABLE contatos (
     telefone VARCHAR(20) NOT NULL,
     mensagem TEXT NOT NULL,
     arquivo VARCHAR(255),
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_criado (criado_em)
 );
+
+
