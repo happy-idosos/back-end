@@ -8,10 +8,14 @@ class EventoController
         $this->conn = $db;
     }
 
-    // Criação de evento (apenas asilo)
-    public function criarEvento($id_asilo, $titulo, $descricao, $data_evento)
+    /**
+     * Criação de evento (apenas asilo autenticado)
+     * Agora recebe o usuário autenticado do middleware
+     */
+    public function criarEvento($user, $titulo, $descricao, $data_evento)
     {
-        if (!$this->isAsilo($id_asilo)) {
+        // Verifica se é asilo
+        if ($user->tipo !== 'asilo') {
             return ['status' => 403, 'message' => 'Somente asilos podem criar eventos'];
         }
 
@@ -21,40 +25,67 @@ class EventoController
 
         try {
             $sql = "INSERT INTO eventos (titulo, descricao, data_evento, id_asilo)
-                    VALUES (:titulo,:descricao,:data_evento,:id_asilo)";
+                    VALUES (:titulo, :descricao, :data_evento, :id_asilo)";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descricao', $descricao);
             $stmt->bindParam(':data_evento', $data_evento);
+            $id_asilo = $user->id;
             $stmt->bindParam(':id_asilo', $id_asilo);
             $stmt->execute();
 
-            return ['status' => 201, 'message' => 'Evento criado com sucesso', 'id_evento' => $this->conn->lastInsertId()];
+            return [
+                'status' => 201, 
+                'message' => 'Evento criado com sucesso', 
+                'id_evento' => $this->conn->lastInsertId()
+            ];
         } catch (PDOException $e) {
             return ['status' => 500, 'message' => $e->getMessage()];
         }
     }
 
-    // Listar todos eventos
+    /**
+     * Listar todos eventos (público)
+     */
     public function listarEventos()
     {
-        $sql = "SELECT e.*, a.nome AS nome_asilo 
-                FROM eventos e
-                JOIN asilos a ON e.id_asilo = a.id_asilo
-                ORDER BY e.data_evento ASC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute();
-        $eventos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        return ['status' => 200, 'eventos' => $eventos];
+        try {
+            $sql = "SELECT e.*, a.nome AS nome_asilo 
+                    FROM eventos e
+                    JOIN asilos a ON e.id_asilo = a.id_asilo
+                    ORDER BY e.data_evento ASC";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute();
+            $eventos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            return ['status' => 200, 'eventos' => $eventos];
+        } catch (PDOException $e) {
+            return ['status' => 500, 'message' => $e->getMessage()];
+        }
     }
 
-    // Verifica se o ID é de um asilo
-    private function isAsilo($id_asilo)
+    /**
+     * Buscar evento por ID
+     */
+    public function buscarEvento($id_evento)
     {
-        $sql = "SELECT id_asilo FROM asilos WHERE id_asilo = :id";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindParam(':id', $id_asilo);
-        $stmt->execute();
-        return $stmt->rowCount() > 0;
+        try {
+            $sql = "SELECT e.*, a.nome AS nome_asilo, a.email AS email_asilo
+                    FROM eventos e
+                    JOIN asilos a ON e.id_asilo = a.id_asilo
+                    WHERE e.id_evento = :id_evento";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(':id_evento', $id_evento);
+            $stmt->execute();
+            $evento = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$evento) {
+                return ['status' => 404, 'message' => 'Evento não encontrado'];
+            }
+
+            return ['status' => 200, 'evento' => $evento];
+        } catch (PDOException $e) {
+            return ['status' => 500, 'message' => $e->getMessage()];
+        }
     }
 }

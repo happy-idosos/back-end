@@ -1,5 +1,7 @@
 <?php
-// api-php/routes/rotas.php
+
+// Carrega middleware
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 // Carrega todos os controllers automaticamente 
 foreach (glob(__DIR__ . '/../controllers/*.php') as $file) {
@@ -31,21 +33,16 @@ if (!function_exists('getJsonInput')) {
         $raw = file_get_contents('php://input');
         $json = json_decode($raw, true);
         if (is_array($json)) return $json;
-        // fallback to POST (form-data) if JSON is not present
         return $_POST ?? [];
     }
 }
 
 if (!function_exists('safeCall')) {
-    /**
-     * Executa callback com try/catch e retorna um array padronizado de erro em caso de exception.
-     */
     function safeCall(callable $fn)
     {
         try {
             return $fn();
         } catch (Throwable $e) {
-            // Em desenvolvimento pode expor $e->getMessage(); em produção registre em log e retorne mensagem genérica
             return [
                 'status' => 500,
                 'error'  => 'Erro interno no servidor',
@@ -55,152 +52,202 @@ if (!function_exists('safeCall')) {
     }
 }
 
-// - Definição de rotas (method, uri, handler) -
-// Atenção: as URIs devem ter barra inicial, ex: '/api', '/api/usuarios'
+// Definição de rotas
 $routes = [
-    // Root / health
-    ['GET',  '/',                function () use ($exemploController) {
-        return safeCall(fn() => ['status' => 200, 'message' => 'API funcionando corretamente']);
+    // ========== ROTAS PÚBLICAS ==========
+    
+    // Health check
+    ['GET', '/', function() {
+        return ['status' => 200, 'message' => 'API Happy Idosos funcionando'];
     }],
 
-    ['GET',  '/api',             function () use ($exemploController) {
-        return safeCall(fn() => method_exists($exemploController, 'index') ? $exemploController->index() : ['status' => 200, 'message' => 'API ok']);
+    ['GET', '/api', function() {
+        return ['status' => 200, 'message' => 'API Happy Idosos v1.0'];
     }],
 
-    // Cadastro
-    ['POST', '/api/cadastro/usuario', function () use ($cadastroUsuarioController) {
+    // Cadastro (público)
+    ['POST', '/api/cadastro/usuario', function() use ($cadastroUsuarioController) {
         $input = getJsonInput();
         return safeCall(fn() => $cadastroUsuarioController->cadastrar($input));
     }],
-    ['POST', '/api/cadastro/asilo', function () use ($cadastroAsiloController) {
+
+    ['POST', '/api/cadastro/asilo', function() use ($cadastroAsiloController) {
         $input = getJsonInput();
         return safeCall(fn() => $cadastroAsiloController->cadastrar($input));
     }],
 
-    // Login
-    ['POST', '/api/login', function () use ($loginController) {
+    // Login (público)
+    ['POST', '/api/login', function() use ($loginController) {
         $input = getJsonInput();
         return safeCall(fn() => $loginController->login($input));
     }],
 
-    // Listagens
-    ['GET', '/api/usuarios', function () use ($listagemController) {
+    // Listagens públicas
+    ['GET', '/api/usuarios', function() use ($listagemController) {
         return safeCall(fn() => $listagemController->listarUsuarios());
     }],
-    ['GET', '/api/asilos', function () use ($listagemController) {
+
+    ['GET', '/api/asilos', function() use ($listagemController) {
         return safeCall(fn() => $listagemController->listarAsilos());
     }],
 
-    // Filtrar Asilos
-    ['POST', '/api/filtra/asilos', function () use ($filtraAsiloController) {
+    // Filtrar asilos (público)
+    ['POST', '/api/filtra/asilos', function() use ($filtraAsiloController) {
         $input = getJsonInput();
         return safeCall(fn() => $filtraAsiloController->filtrar($input));
     }],
 
-    // Recuperação de senha
-    ['POST', '/api/esqueceu-senha', function () use ($esqueceuSenhaController) {
+    // Recuperação de senha (público)
+    ['POST', '/api/esqueceu-senha', function() use ($esqueceuSenhaController) {
         $input = getJsonInput();
         $email = $input['email'] ?? null;
         return safeCall(fn() => $esqueceuSenhaController->solicitarReset($email));
     }],
-    ['POST', '/api/reset-senha', function () use ($esqueceuSenhaController) {
+
+    ['POST', '/api/reset-senha', function() use ($esqueceuSenhaController) {
         $input = getJsonInput();
-        return safeCall(fn() => $esqueceuSenhaController->redefinirSenha($input['token'] ?? null, $input['novaSenha'] ?? null));
+        return safeCall(fn() => $esqueceuSenhaController->redefinirSenha(
+            $input['token'] ?? null, 
+            $input['novaSenha'] ?? null
+        ));
     }],
-    ['GET', '/api/reset-senha', function () use ($conn) {
-        // valida token via query string ?token=...
+
+    ['GET', '/api/reset-senha', function() use ($conn) {
         $token = $_GET['token'] ?? null;
         if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
+        
         $stmt = $conn->prepare("SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()");
         $stmt->bindParam(":token", $token);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         if (!$row) return ['status' => 400, 'message' => 'Token inválido ou expirado'];
         return ['status' => 200, 'message' => 'Token válido', 'token' => $token];
     }],
 
-    // Eventos / Participações
-    ['GET', '/api/eventos', function () use ($eventoController) {
+    // Eventos - listagem pública
+    ['GET', '/api/eventos', function() use ($eventoController) {
         return safeCall(fn() => $eventoController->listarEventos());
     }],
-    ['POST', '/api/eventos/criar', function () use ($eventoController) {
-        $input = getJsonInput();
-        return safeCall(fn() => $eventoController->criarEvento($input['id_asilo'] ?? null, $input['titulo'] ?? null, $input['descricao'] ?? null, $input['data_evento'] ?? null));
-    }],
-    ['POST', '/api/eventos/participar', function () use ($participacaoController) {
-        $input = getJsonInput();
-        return safeCall(fn() => $participacaoController->participarEvento($input['id_usuario'] ?? null, $input['id_evento'] ?? null));
-    }],
-    ['GET', '/api/eventos/meus', function () use ($participacaoController) {
-        $id_usuario = $_GET['id_usuario'] ?? null;
-        return safeCall(fn() => $participacaoController->listarParticipacoes($id_usuario));
+
+    ['GET', '/api/eventos/:id', function() use ($eventoController) {
+        $id_evento = $_GET['id'] ?? null;
+        return safeCall(fn() => $eventoController->buscarEvento($id_evento));
     }],
 
-    // Contato (com arquivo)
-    ['POST', '/api/contato', function () use ($contatoController) {
+    // Vídeos - listagem pública
+    ['GET', '/api/videos', function() use ($videoController) {
+        return safeCall(fn() => $videoController->listarVideos());
+    }],
+
+    // Contato (público)
+    ['POST', '/api/contato', function() use ($contatoController) {
         $input = getJsonInput();
         $arquivo = $_FILES['arquivo'] ?? null;
         return safeCall(fn() => $contatoController->enviar($input, $arquivo));
     }],
 
-    // VideoController - Upload e Listagem
-['POST', '/api/videos/upload', function () use ($videoController) {
-    $files = $_FILES ?? [];
-    $input = $_POST ?? []; // 'descricao' enviado via form-data
-    return safeCall(fn() => $videoController->uploadVideo($files, $input));
-}],
+    // ========== ROTAS PROTEGIDAS (REQUEREM AUTENTICAÇÃO) ==========
 
-['GET', '/api/videos', function () use ($videoController) {
-    return safeCall(fn() => $videoController->listarVideos());
-}],
+    // Eventos - criar (apenas asilos)
+    ['POST', '/api/eventos/criar', function() use ($eventoController) {
+        $user = AuthMiddleware::requireType('asilo');
+        $input = getJsonInput();
+        return safeCall(fn() => $eventoController->criarEvento(
+            $user,
+            $input['titulo'] ?? null,
+            $input['descricao'] ?? null,
+            $input['data_evento'] ?? null
+        ));
+    }],
 
-['POST', '/api/logout', function () {
-    return safeCall(function() {
-        session_start();
-        $_SESSION = [];
-        if (ini_get("session.use_cookies")) {
-            $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000,
-                $params["path"], $params["domain"],
-                $params["secure"], $params["httponly"]
-            );
-        }
-        session_destroy();
-        return ['status' => 200, 'message' => 'Logout realizado com sucesso'];
-    });
-}],
+    // Participações - participar de evento (apenas usuários)
+    ['POST', '/api/eventos/participar', function() use ($participacaoController) {
+        $user = AuthMiddleware::requireType('usuario');
+        $input = getJsonInput();
+        return safeCall(fn() => $participacaoController->participarEvento(
+            $user,
+            $input['id_evento'] ?? null
+        ));
+    }],
 
+    // Participações - cancelar participação (apenas usuários)
+    ['DELETE', '/api/eventos/participar', function() use ($participacaoController) {
+        $user = AuthMiddleware::requireType('usuario');
+        $input = getJsonInput();
+        return safeCall(fn() => $participacaoController->cancelarParticipacao(
+            $user,
+            $input['id_evento'] ?? null
+        ));
+    }],
 
+    // Participações - listar minhas participações (apenas usuários)
+    ['GET', '/api/eventos/meus', function() use ($participacaoController) {
+        $user = AuthMiddleware::requireType('usuario');
+        return safeCall(fn() => $participacaoController->listarMinhasParticipacoes($user));
+    }],
+
+    // Participações - listar participantes de um evento (apenas asilos)
+    ['GET', '/api/eventos/:id/participantes', function() use ($participacaoController) {
+        $user = AuthMiddleware::requireType('asilo');
+        $id_evento = $_GET['id'] ?? null;
+        return safeCall(fn() => $participacaoController->listarParticipantes($user, $id_evento));
+    }],
+
+    // Vídeos - upload (requer autenticação)
+    ['POST', '/api/videos', function() use ($videoController) {
+        $user = AuthMiddleware::requireAuth();
+        $input = getJsonInput();
+        return safeCall(fn() => $videoController->uploadVideo($user, $_FILES ?? [], $input));
+    }],
+
+    // Vídeos - deletar (apenas autor)
+    ['DELETE', '/api/videos/:id', function() use ($videoController) {
+        $user = AuthMiddleware::requireAuth();
+        $id_midia = $_GET['id'] ?? null;
+        return safeCall(fn() => $videoController->deletarVideo($user, $id_midia));
+    }],
 ];
 
-
-
-//  Implementação da função route() (evita Undefined function) 
+// Implementação da função route()
 if (!function_exists('route')) {
-    /**
-     * route()
-     * @param string $method HTTP method (GET, POST, ...)
-     * @param string $uri    URI normalizada (ex: '/api/usuarios')
-     * @return array|false Resultado da rota ou false se não encontrada
-     */
     function route(string $method, string $uri)
     {
         global $routes;
 
-        // Normaliza uri: vazio -> '/'
+        // Normaliza URI
         if ($uri === '' || $uri === null) $uri = '/';
-
-        // Garante barra inicial
         if ($uri[0] !== '/') $uri = '/' . $uri;
 
         foreach ($routes as $r) {
             [$m, $u, $handler] = $r;
+            
             if (strtoupper($method) !== strtoupper($m)) continue;
-            // rota exata
+
+            // Rota exata
             if ($u === $uri) {
-                // executa retorno do handler
                 $res = $handler();
-                // se o handler retornar null ou true/false, converte em resposta uniforme
+                if (is_null($res)) {
+                    return ['status' => 204, 'message' => 'Sem conteúdo'];
+                }
+                return $res;
+            }
+
+            // Rota com parâmetros dinâmicos (ex: /api/eventos/:id)
+            $pattern = preg_replace('/:\w+/', '([^/]+)', $u);
+            $pattern = '#^' . $pattern . '$#';
+            
+            if (preg_match($pattern, $uri, $matches)) {
+                array_shift($matches); // Remove o match completo
+                
+                // Extrai nomes dos parâmetros
+                preg_match_all('/:(\w+)/', $u, $paramNames);
+                $params = array_combine($paramNames[1], $matches);
+                
+                // Adiciona parâmetros ao $_GET
+                $_GET = array_merge($_GET, $params);
+                
+                $res = $handler();
                 if (is_null($res)) {
                     return ['status' => 204, 'message' => 'Sem conteúdo'];
                 }
@@ -208,6 +255,6 @@ if (!function_exists('route')) {
             }
         }
 
-        return false; // não encontrou a rota
+        return false; // Rota não encontrada
     }
 }
