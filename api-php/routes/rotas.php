@@ -189,3 +189,4 @@ if (!function_exists('route')) {
         return false; // não encontrou a rota
     }
 }
+?>

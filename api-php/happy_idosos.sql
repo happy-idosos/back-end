@@ -103,30 +103,19 @@ INSERT INTO tipos_midia (nome, descricao, extensoes_permitidas) VALUES
 ('imagem', 'Imagens e fotos', 'jpg,jpeg,png,gif'),
 ('documento', 'Documentos diversos', 'pdf,doc,docx,txt');
 
--- Tabela de mídias
+-- Tabela de mídias (SIMPLIFICADA - mantendo compatibilidade)
 CREATE TABLE midias (
     id_midia INT AUTO_INCREMENT PRIMARY KEY,
-    nome_original VARCHAR(255) NOT NULL,
-    nome_arquivo VARCHAR(255) NOT NULL,
-    descricao TEXT,
-    url VARCHAR(500) NOT NULL,
-    tamanho_bytes BIGINT,
-    id_tipo_midia INT DEFAULT 1, -- Default para vídeo
+    nome_midia VARCHAR(128),
+    descricao VARCHAR(255),
+    url VARCHAR(255),
     id_usuario INT,
     id_asilo INT,
     id_evento INT,
-    publica BOOLEAN DEFAULT TRUE,
-    ativo BOOLEAN DEFAULT TRUE,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_tipo_midia) REFERENCES tipos_midia(id_tipo_midia),
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
     FOREIGN KEY (id_asilo) REFERENCES asilos(id_asilo) ON DELETE SET NULL,
-    FOREIGN KEY (id_evento) REFERENCES eventos(id_evento) ON DELETE SET NULL,
-    INDEX idx_midia_tipo (id_tipo_midia),
-    INDEX idx_midia_usuario (id_usuario),
-    INDEX idx_midia_data (criado_em)
+    FOREIGN KEY (id_evento) REFERENCES eventos(id_evento) ON DELETE SET NULL
 );
 
 -- Tabela de contatos
@@ -135,60 +124,7 @@ CREATE TABLE contatos (
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL,
     telefone VARCHAR(20) NOT NULL,
-    assunto VARCHAR(100),
     mensagem TEXT NOT NULL,
     arquivo VARCHAR(255),
-    lido BOOLEAN DEFAULT FALSE,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_contato_email (email),
-    INDEX idx_contato_data (criado_em)
-);
-
--- Tabela de categorias de vídeos (opcional)
-CREATE TABLE categorias_videos (
-    id_categoria INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(50) NOT NULL,
-    descricao VARCHAR(255),
-    icone VARCHAR(50),
-    ativo BOOLEAN DEFAULT TRUE
-);
-
--- Inserir categorias padrão
-INSERT INTO categorias_videos (nome, descricao, icone) VALUES
-('atividades', 'Atividades recreativas', 'fa-palette'),
-('eventos', 'Eventos especiais', 'fa-calendar'),
-('depoimentos', 'Depoimentos emocionantes', 'fa-comments'),
-('tutoriais', 'Tutoriais e orientações', 'fa-book');
-
--- Adicionar categoria aos vídeos (opcional)
-ALTER TABLE midias ADD COLUMN id_categoria INT,
-ADD FOREIGN KEY (id_categoria) REFERENCES categorias_videos(id_categoria);
-
--- Tabela de visualizações de vídeos (estatísticas)
-CREATE TABLE visualizacoes_videos (
-    id_visualizacao INT AUTO_INCREMENT PRIMARY KEY,
-    id_midia INT NOT NULL,
-    id_usuario INT,
-    ip_address VARCHAR(45),
-    tempo_assistido INT, -- em segundos
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_midia) REFERENCES midias(id_midia) ON DELETE CASCADE,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
-    INDEX idx_visualizacao_midia (id_midia),
-    INDEX idx_visualizacao_data (criado_em)
-);
-
--- Tabela de curtidas
-CREATE TABLE curtidas (
-    id_curtida INT AUTO_INCREMENT PRIMARY KEY,
-    id_midia INT NOT NULL,
-    id_usuario INT NOT NULL,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_midia) REFERENCES midias(id_midia) ON DELETE CASCADE,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
-    UNIQUE KEY uk_curtida_midia_usuario (id_midia, id_usuario),
-    INDEX idx_curtida_midia (id_midia)
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

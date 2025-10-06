@@ -9,20 +9,15 @@ class VideoController
     public function __construct($conn)
     {
         $this->conn = $conn;
+        $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
-    // Upload de vídeo
+    /**
+     * Upload de vídeo (campo: video, descricao)
+     * Retorna: arquivo, descricao
+     */
     public function uploadVideo($files, $data)
     {
-        // Headers CORS
-        header('Access-Control-Allow-Origin: http://localhost:3000');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization');
-        
-        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-            exit(0);
-        }
-
         if (!isset($files['video']) || $files['video']['error'] !== UPLOAD_ERR_OK) {
             return [
                 "status" => 400,
@@ -31,23 +26,23 @@ class VideoController
         }
 
         $video = $files['video'];
-        $allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov'];
+        $allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/quicktime', 'video/mov'];
+        $ext = strtolower(pathinfo($video['name'], PATHINFO_EXTENSION));
 
-        if (!in_array($video['type'], $allowedTypes)) {
+        if (!in_array($video['type'], $allowedTypes) && !in_array($ext, ['mp4', 'webm', 'ogg', 'avi', 'mov'])) {
             return [
                 "status" => 400,
                 "message" => "Formato de vídeo inválido. Permitidos: MP4, WEBM, OGG, AVI, MOV."
             ];
         }
 
-        // Define diretório de upload
+        // Cria diretório de upload, se não existir
         $uploadDir = __DIR__ . '/../uploads/videos/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
 
-        // Nome único para evitar conflito
-        $fileName = uniqid('video_', true) . "." . pathinfo($video['name'], PATHINFO_EXTENSION);
+        $fileName = uniqid('video_', true) . "." . $ext;
         $filePath = $uploadDir . $fileName;
 
         if (!move_uploaded_file($video['tmp_name'], $filePath)) {
@@ -57,12 +52,12 @@ class VideoController
             ];
         }
 
-        // Caminho relativo para salvar no banco
         $url = "uploads/videos/" . $fileName;
         $descricao = $data['descricao'] ?? null;
 
         try {
-            $sql = "INSERT INTO midias (nome_midia, descricao, url) VALUES (:nome, :descricao, :url)";
+            $sql = "INSERT INTO midias (nome_midia, descricao, url, data_criacao)
+                    VALUES (:nome, :descricao, :url, NOW())";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':nome', $fileName);
             $stmt->bindValue(':descricao', $descricao);
@@ -73,17 +68,14 @@ class VideoController
                 "status" => 201,
                 "message" => "Vídeo enviado com sucesso.",
                 "data" => [
-                    "nome" => $fileName,
-                    "url" => $url,
+                    "arquivo" => $url,
                     "descricao" => $descricao
                 ]
             ];
         } catch (Exception $e) {
-            // Remove o arquivo se houve erro no banco
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
-            
             return [
                 "status" => 500,
                 "message" => "Erro ao salvar vídeo no banco de dados.",
@@ -92,19 +84,19 @@ class VideoController
         }
     }
 
-    // Listagem do feed de vídeos
+    /**
+     * Listagem dos vídeos (feed)
+     * Retorna: arquivo, descricao
+     */
     public function listarVideos()
     {
-        // Headers CORS
-        header('Access-Control-Allow-Origin: http://localhost:3000');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
         try {
-            // Usando data_criacao que adicionamos na tabela
-            $sql = "SELECT id_midia, nome_midia, descricao, url, data_criacao as data FROM midias WHERE url LIKE 'uploads/videos/%' ORDER BY id_midia DESC";
-            $stmt = $this->conn->query($sql);
+            $sql = "SELECT url AS arquivo, descricao 
+                    FROM midias
+                    WHERE url LIKE 'uploads/videos/%'
+                    ORDER BY id_midia DESC";
 
+            $stmt = $this->conn->query($sql);
             $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             return [
