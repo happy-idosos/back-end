@@ -1,6 +1,5 @@
-create database happy_idosos;
-
-use happy_idosos;
+CREATE DATABASE happy_idosos;
+USE happy_idosos;
 
 create table usuarios (
     id_usuario int auto_increment primary key,
@@ -83,4 +82,3 @@ CREATE TABLE contatos (
     arquivo VARCHAR(255),
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
