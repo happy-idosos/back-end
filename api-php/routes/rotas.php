@@ -225,6 +225,7 @@ $routes = [
     ['GET', '/api/perfil', function () use ($editarPerfilController) {
         return safeCall(fn() => $editarPerfilController->buscarPerfil());
     }],
+    
 ];
 
 // Implementação da função route()
