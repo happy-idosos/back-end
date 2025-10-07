@@ -6,6 +6,9 @@ class AuthMiddleware {
         $headers = getallheaders();
         $token = $headers['Authorization'] ?? $headers['authorization'] ?? null;
         
+        // Debug
+        error_log("🔐 AUTH DEBUG - Token recebido: " . ($token ? "PRESENTE" : "AUSENTE"));
+        
         if (!$token) {
             http_response_code(401);
             echo json_encode(['status' => 401, 'message' => 'Token de autenticação não fornecido']);
@@ -14,32 +17,40 @@ class AuthMiddleware {
         
         // Remove "Bearer " se presente
         $token = str_replace('Bearer ', '', $token);
+        error_log("🔐 AUTH DEBUG - Token limpo: " . substr($token, 0, 20) . "...");
         
-        // Decodifica o token JWT (você precisa ter uma função para decodificar JWT)
+        // Decodifica o token
         $user = self::decodeJWT($token);
         
         if (!$user) {
+            error_log("🔐 AUTH DEBUG - Token inválido ou expirado");
             http_response_code(401);
             echo json_encode(['status' => 401, 'message' => 'Token inválido ou expirado']);
             exit;
         }
         
+        error_log("🔐 AUTH DEBUG - Usuário autenticado: " . print_r($user, true));
         return $user;
     }
     
     public static function requireType($type) {
         $user = self::requireAuth();
         
+        error_log("🔐 AUTH DEBUG - Verificando tipo: esperado {$type}, usuário: " . print_r($user, true));
+        
         // Verifica se o tipo do usuário corresponde ao esperado
-        if ($type === 'usuario' && !isset($user['id_usuario'])) {
+        // CORREÇÃO: Verifica pelo campo 'tipo' em vez de id_usuario/id_asilo
+        if (!isset($user['tipo'])) {
+            error_log("🔐 AUTH DEBUG - Tipo de usuário não definido no token");
             http_response_code(403);
-            echo json_encode(['status' => 403, 'message' => 'Acesso permitido apenas para usuários']);
+            echo json_encode(['status' => 403, 'message' => 'Tipo de usuário não definido']);
             exit;
         }
         
-        if ($type === 'asilo' && !isset($user['id_asilo'])) {
+        if ($user['tipo'] !== $type) {
+            error_log("🔐 AUTH DEBUG - Tipo incorreto: esperado {$type}, recebido {$user['tipo']}");
             http_response_code(403);
-            echo json_encode(['status' => 403, 'message' => 'Acesso permitido apenas para asilos']);
+            echo json_encode(['status' => 403, 'message' => "Acesso permitido apenas para {$type}s"]);
             exit;
         }
         
@@ -47,26 +58,61 @@ class AuthMiddleware {
     }
     
     private static function decodeJWT($token) {
-        // Implementação básica - você deve usar uma biblioteca JWT real
-        // Esta é uma implementação simplificada para demonstração
-        
         try {
+            error_log("🔐 AUTH DEBUG - Decodificando token JWT...");
+            
             // Divide o token JWT
             $parts = explode('.', $token);
             if (count($parts) !== 3) {
+                error_log("🔐 AUTH DEBUG - Token não tem 3 partes");
                 return null;
             }
             
-            // Decodifica o payload
-            $payload = json_decode(base64_decode($parts[1]), true);
+            // Decodifica o payload - JWT usa base64url
+            $payload = $parts[1];
+            $payload = str_replace(['-', '_'], ['+', '/'], $payload);
+            $mod4 = strlen($payload) % 4;
+            if ($mod4) {
+                $payload .= str_repeat('=', 4 - $mod4);
+            }
             
-            if (!$payload || !isset($payload['exp']) || $payload['exp'] < time()) {
+            $payloadDecoded = base64_decode($payload);
+            $payloadData = json_decode($payloadDecoded, true);
+            
+            error_log("🔐 AUTH DEBUG - Payload decodificado: " . print_r($payloadData, true));
+            
+            if (!$payloadData) {
+                error_log("🔐 AUTH DEBUG - Payload vazio ou inválido");
                 return null;
             }
             
-            return $payload;
+            // Verifica expiração
+            if (isset($payloadData['exp']) && $payloadData['exp'] < time()) {
+                error_log("🔐 AUTH DEBUG - Token expirado");
+                return null;
+            }
+            
+            // CORREÇÃO: Retorna a estrutura esperada pelos controllers
+            // Os controllers esperam: ['id', 'tipo', 'nome'] 
+            $userData = [
+                'id' => $payloadData['id'] ?? $payloadData['user_id'] ?? null,
+                'tipo' => $payloadData['tipo'] ?? $payloadData['type'] ?? null,
+                'nome' => $payloadData['nome'] ?? $payloadData['name'] ?? 'Usuário'
+            ];
+            
+            // Para compatibilidade com código existente
+            if ($userData['tipo'] === 'usuario') {
+                $userData['id_usuario'] = $userData['id'];
+            } elseif ($userData['tipo'] === 'asilo') {
+                $userData['id_asilo'] = $userData['id'];
+            }
+            
+            error_log("🔐 AUTH DEBUG - Estrutura final do usuário: " . print_r($userData, true));
+            
+            return $userData;
             
         } catch (Exception $e) {
+            error_log("🔐 AUTH DEBUG - Exceção ao decodificar token: " . $e->getMessage());
             return null;
         }
     }

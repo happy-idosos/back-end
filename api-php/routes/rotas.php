@@ -192,11 +192,25 @@ $routes = [
     }],
 
     // Vídeos - upload (requer autenticação)
-    ['POST', '/api/videos', function () use ($videoController) {
-        $user = AuthMiddleware::requireAuth();
-        $input = getJsonInput();
-        return safeCall(fn() => $videoController->uploadVideo($user, $_FILES ?? [], $input));
-    }],
+// CORREÇÃO: A rota de upload deve ser POST /api/videos (já existe, mas vamos verificar)
+
+// Na definição de rotas, verifique se esta rota existe:
+// Rota de upload de vídeos - CORRIGIDA
+['POST', '/api/videos', function () use ($videoController) {
+    // Habilita exibição de erros para debug
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    
+    $user = AuthMiddleware::requireAuth();
+    
+    // Debug do que está chegando
+    error_log("=== DEBUG UPLOAD VIDEO ===");
+    error_log("FILES: " . print_r($_FILES, true));
+    error_log("POST: " . print_r($_POST, true));
+    error_log("USER: " . print_r($user, true));
+    
+    return safeCall(fn() => $videoController->uploadVideo($user, $_FILES, $_POST));
+}],
 
     // Vídeos - deletar (apenas autor)
     ['DELETE', '/api/videos/:id', function () use ($videoController) {

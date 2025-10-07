@@ -27,12 +27,32 @@ class VideoController
      */
     public function uploadVideo($user, $files, $data)
     {
+
+            // DEBUG: Log do que está chegando
+    error_log("DEBUG - Files recebidos: " . print_r($files, true));
+    error_log("DEBUG - Data recebida: " . print_r($data, true));
+    error_log("DEBUG - User: " . print_r($user, true));
+
+    // Verifica se há arquivo enviado
+    if (!isset($files['video']) || $files['video']['error'] !== UPLOAD_ERR_OK) {
+        $errorMsg = $this->handleUploadError($files['video']['error'] ?? null);
+        error_log("DEBUG - Erro no upload: " . print_r($errorMsg, true));
+        return $errorMsg;
+    }
         // Verifica se há arquivo enviado
         if (!isset($files['video']) || $files['video']['error'] !== UPLOAD_ERR_OK) {
             return $this->handleUploadError($files['video']['error'] ?? null);
         }
 
         $video = $files['video'];
+
+        // Validações básicas do arquivo
+        if (!isset($video['tmp_name']) || !is_uploaded_file($video['tmp_name'])) {
+            return [
+                "status" => 400,
+                "message" => "Arquivo inválido ou corrompido."
+            ];
+        }
 
         // Validação de tipo
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -67,10 +87,15 @@ class VideoController
             ];
         }
 
-        // Salva no banco
+        // Valida e sanitiza dados
+        $descricao = isset($data['descricao']) ? trim($data['descricao']) : null;
+        $titulo = isset($data['titulo']) ? trim($data['titulo']) : 'Vídeo sem título';
+        
+        if (empty($titulo)) {
+            $titulo = 'Vídeo sem título';
+        }
+
         $url = "uploads/videos/" . $fileName;
-        $descricao = $data['descricao'] ?? null;
-        $titulo = $data['titulo'] ?? 'Vídeo sem título';
         $tamanhoBytes = $video['size'];
 
         try {
@@ -82,15 +107,15 @@ class VideoController
             $stmt->bindValue(':url', $url);
             $stmt->bindValue(':tipo_midia', 'video');
             $stmt->bindValue(':mime_type', $mimeType);
-            $stmt->bindValue(':tamanho_bytes', $tamanhoBytes);
+            $stmt->bindValue(':tamanho_bytes', $tamanhoBytes, PDO::PARAM_INT);
             
             // Define quem enviou o vídeo
-            if ($user->tipo === 'usuario') {
-                $stmt->bindValue(':id_usuario', $user->id);
-                $stmt->bindValue(':id_asilo', null);
+            if ($user['tipo'] === 'usuario') {
+                $stmt->bindValue(':id_usuario', $user['id'], PDO::PARAM_INT);
+                $stmt->bindValue(':id_asilo', null, PDO::PARAM_NULL);
             } else {
-                $stmt->bindValue(':id_usuario', null);
-                $stmt->bindValue(':id_asilo', $user->id);
+                $stmt->bindValue(':id_usuario', null, PDO::PARAM_NULL);
+                $stmt->bindValue(':id_asilo', $user['id'], PDO::PARAM_INT);
             }
             
             $stmt->execute();
@@ -105,7 +130,7 @@ class VideoController
                     "descricao" => $descricao,
                     "tamanho_mb" => round($tamanhoBytes / (1024 * 1024), 2),
                     "mime_type" => $mimeType,
-                    "enviado_por" => $user->nome
+                    "enviado_por" => $user['nome']
                 ]
             ];
         } catch (Exception $e) {
@@ -154,6 +179,7 @@ class VideoController
             // Formata tamanho em MB
             foreach ($videos as &$video) {
                 $video['tamanho_mb'] = round($video['tamanho_bytes'] / (1024 * 1024), 2);
+                unset($video['tamanho_bytes']); // Remove o campo original para evitar confusão
             }
 
             return [
@@ -189,9 +215,9 @@ class VideoController
 
             // Verifica se é o autor
             $isAutor = false;
-            if ($user->tipo === 'usuario' && $video['id_usuario'] == $user->id) {
+            if ($user['tipo'] === 'usuario' && $video['id_usuario'] == $user['id']) {
                 $isAutor = true;
-            } elseif ($user->tipo === 'asilo' && $video['id_asilo'] == $user->id) {
+            } elseif ($user['tipo'] === 'asilo' && $video['id_asilo'] == $user['id']) {
                 $isAutor = true;
             }
 
@@ -242,5 +268,57 @@ class VideoController
             "status" => 400,
             "message" => $message
         ];
+    }
+
+    /**
+     * Buscar vídeo por ID
+     */
+    public function buscarVideoPorId($id_midia)
+    {
+        try {
+            $sql = "SELECT 
+                        m.id_midia, 
+                        m.nome_midia, 
+                        m.descricao, 
+                        m.url, 
+                        m.tipo_midia,
+                        m.mime_type,
+                        m.tamanho_bytes,
+                        m.criado_em,
+                        COALESCE(u.nome, a.nome) as autor_nome,
+                        CASE 
+                            WHEN m.id_usuario IS NOT NULL THEN 'usuario'
+                            ELSE 'asilo'
+                        END as autor_tipo
+                    FROM midias m
+                    LEFT JOIN usuarios u ON m.id_usuario = u.id_usuario
+                    LEFT JOIN asilos a ON m.id_asilo = a.id_asilo
+                    WHERE m.id_midia = :id_midia AND m.tipo_midia = 'video'";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(':id_midia', $id_midia);
+            $stmt->execute();
+            $video = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$video) {
+                return ['status' => 404, 'message' => 'Vídeo não encontrado'];
+            }
+
+            // Formata tamanho em MB
+            $video['tamanho_mb'] = round($video['tamanho_bytes'] / (1024 * 1024), 2);
+            unset($video['tamanho_bytes']);
+
+            return [
+                "status" => 200,
+                "message" => "Vídeo encontrado com sucesso.",
+                "data" => $video
+            ];
+        } catch (Exception $e) {
+            return [
+                "status" => 500,
+                "message" => "Erro ao buscar vídeo.",
+                "error" => $e->getMessage()
+            ];
+        }
     }
 }
