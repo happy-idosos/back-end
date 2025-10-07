@@ -12,8 +12,6 @@ class LoginController
     public function __construct($conn)
     {
         $this->conn = $conn;
-
-        // Pega direto do $_ENV carregado no index.php
         $this->jwtSecret = $_ENV['JWT_SECRET'] ?? null;
 
         if (!$this->jwtSecret) {
@@ -76,7 +74,7 @@ class LoginController
         $payload = [
             "iss" => "happy_idosos_api",
             "iat" => time(),
-            "exp" => time() + (60*60*24),
+            "exp" => time() + (60*60*24*7), // 7 dias
             "data" => [
                 "id" => $id,
                 "nome" => $nome,
