@@ -38,8 +38,7 @@ class AuthMiddleware {
         
         error_log("🔐 AUTH DEBUG - Verificando tipo: esperado {$type}, usuário: " . print_r($user, true));
         
-        // Verifica se o tipo do usuário corresponde ao esperado
-        // CORREÇÃO: Verifica pelo campo 'tipo' em vez de id_usuario/id_asilo
+        // CORREÇÃO: Acessar como array
         if (!isset($user['tipo'])) {
             error_log("🔐 AUTH DEBUG - Tipo de usuário não definido no token");
             http_response_code(403);
@@ -47,6 +46,7 @@ class AuthMiddleware {
             exit;
         }
         
+        // CORREÇÃO: Acessar como array
         if ($user['tipo'] !== $type) {
             error_log("🔐 AUTH DEBUG - Tipo incorreto: esperado {$type}, recebido {$user['tipo']}");
             http_response_code(403);
@@ -92,13 +92,28 @@ class AuthMiddleware {
                 return null;
             }
             
-            // CORREÇÃO: Retorna a estrutura esperada pelos controllers
-            // Os controllers esperam: ['id', 'tipo', 'nome'] 
-            $userData = [
-                'id' => $payloadData['id'] ?? $payloadData['user_id'] ?? null,
-                'tipo' => $payloadData['tipo'] ?? $payloadData['type'] ?? null,
-                'nome' => $payloadData['nome'] ?? $payloadData['name'] ?? 'Usuário'
-            ];
+            // CORREÇÃO: Extrair dados da estrutura 'data' do seu LoginController
+            $userData = [];
+            
+            if (isset($payloadData['data'])) {
+                // Se existe estrutura 'data', extrai dela
+                $userData = [
+                    'id' => $payloadData['data']['id'] ?? null,
+                    'tipo' => $payloadData['data']['tipo'] ?? null,
+                    'nome' => $payloadData['data']['nome'] ?? 'Usuário',
+                    'email' => $payloadData['data']['email'] ?? null
+                ];
+                error_log("🔐 AUTH DEBUG - Estrutura 'data' encontrada no token");
+            } else {
+                // Se não existe estrutura 'data', usa campos diretos (para compatibilidade)
+                $userData = [
+                    'id' => $payloadData['id'] ?? $payloadData['user_id'] ?? null,
+                    'tipo' => $payloadData['tipo'] ?? $payloadData['type'] ?? null,
+                    'nome' => $payloadData['nome'] ?? $payloadData['name'] ?? 'Usuário',
+                    'email' => $payloadData['email'] ?? null
+                ];
+                error_log("🔐 AUTH DEBUG - Usando campos diretos do payload");
+            }
             
             // Para compatibilidade com código existente
             if ($userData['tipo'] === 'usuario') {
@@ -115,6 +130,11 @@ class AuthMiddleware {
             error_log("🔐 AUTH DEBUG - Exceção ao decodificar token: " . $e->getMessage());
             return null;
         }
+
     }
+    // Adicione esta função no AuthMiddleware como método público
+public static function debugToken($token) {
+    return self::decodeJWT($token);
+}
 }
 ?>

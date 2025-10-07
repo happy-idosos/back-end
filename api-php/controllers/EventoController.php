@@ -10,12 +10,16 @@ class EventoController
 
     /**
      * Criação de evento (apenas asilo autenticado)
-     * Agora recebe o usuário autenticado do middleware
+     * CORREÇÃO: Agora recebe array em vez de objeto
      */
     public function criarEvento($user, $titulo, $descricao, $data_evento)
     {
-        // Verifica se é asilo
-        if ($user->tipo !== 'asilo') {
+        error_log("🎪 EVENTO DEBUG - Usuário recebido: " . print_r($user, true));
+        error_log("🎪 EVENTO DEBUG - Tipo do usuário: " . ($user['tipo'] ?? 'NÃO DEFINIDO'));
+        
+        // CORREÇÃO: Acessar como array
+        if (!isset($user['tipo']) || $user['tipo'] !== 'asilo') {
+            error_log("🎪 EVENTO DEBUG - ERRO: Tipo incorreto ou não definido");
             return ['status' => 403, 'message' => 'Somente asilos podem criar eventos'];
         }
 
@@ -30,8 +34,13 @@ class EventoController
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descricao', $descricao);
             $stmt->bindParam(':data_evento', $data_evento);
-            $id_asilo = $user->id;
+            
+            // CORREÇÃO: Acessar como array
+            $id_asilo = $user['id_asilo'] ?? $user['id'];
             $stmt->bindParam(':id_asilo', $id_asilo);
+            
+            error_log("🎪 EVENTO DEBUG - Inserindo evento para asilo ID: " . $id_asilo);
+            
             $stmt->execute();
 
             return [
@@ -40,6 +49,7 @@ class EventoController
                 'id_evento' => $this->conn->lastInsertId()
             ];
         } catch (PDOException $e) {
+            error_log("🎪 EVENTO DEBUG - Erro PDO: " . $e->getMessage());
             return ['status' => 500, 'message' => $e->getMessage()];
         }
     }
@@ -89,3 +99,4 @@ class EventoController
         }
     }
 }
+?>

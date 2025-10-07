@@ -57,6 +57,50 @@ if (!function_exists('safeCall')) {
 $routes = [
     // ========== ROTAS PÚBLICAS ==========
 
+    // Rota de debug do token (remova depois de testar)
+['GET', '/api/debug/token', function () {
+    $headers = getallheaders();
+    $token = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+    
+    if (!$token) {
+        return ['status' => 400, 'message' => 'Token não enviado'];
+    }
+    
+    $token = str_replace('Bearer ', '', $token);
+    
+    try {
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            return ['status' => 400, 'message' => 'Token inválido'];
+        }
+        
+        $payload = $parts[1];
+        $payload = str_replace(['-', '_'], ['+', '/'], $payload);
+        $mod4 = strlen($payload) % 4;
+        if ($mod4) {
+            $payload .= str_repeat('=', 4 - $mod4);
+        }
+        
+        $payloadDecoded = base64_decode($payload);
+        $payloadData = json_decode($payloadDecoded, true);
+        
+        return [
+            'status' => 200,
+            'token_info' => [
+                'payload_completo' => $payloadData,
+                'tem_campo_data' => isset($payloadData['data']),
+                'dados_extraidos' => isset($payloadData['data']) ? [
+                    'id' => $payloadData['data']['id'] ?? null,
+                    'tipo' => $payloadData['data']['tipo'] ?? null,
+                    'nome' => $payloadData['data']['nome'] ?? null
+                ] : null
+            ]
+        ];
+    } catch (Exception $e) {
+        return ['status' => 500, 'message' => 'Erro ao decodificar token', 'error' => $e->getMessage()];
+    }
+}],
+
     // Health check
     ['GET', '/', function () {
         return ['status' => 200, 'message' => 'API Happy Idosos funcionando'];

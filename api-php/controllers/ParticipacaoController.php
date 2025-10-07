@@ -10,16 +10,21 @@ class ParticipacaoController
 
     /**
      * Participar de evento (apenas usuário autenticado)
-     * Agora usa o ID do token JWT
+     * CORREÇÃO: Agora recebe array em vez de objeto
      */
     public function participarEvento($user, $id_evento)
     {
-        // Verifica se é usuário
-        if ($user->tipo !== 'usuario') {
+        error_log("🎫 PARTICIPAÇÃO DEBUG - Usuário recebido: " . print_r($user, true));
+        
+        // CORREÇÃO: Acessar como array
+        if (!isset($user['tipo']) || $user['tipo'] !== 'usuario') {
+            error_log("🎫 PARTICIPAÇÃO DEBUG - ERRO: Tipo incorreto ou não definido");
             return ['status' => 403, 'message' => 'Somente usuários podem participar de eventos'];
         }
 
-        $id_usuario = $user->id;
+        // CORREÇÃO: Acessar como array
+        $id_usuario = $user['id_usuario'] ?? $user['id'];
+        error_log("🎫 PARTICIPAÇÃO DEBUG - ID usuário: " . $id_usuario);
 
         try {
             // Verifica se evento existe
@@ -53,6 +58,7 @@ class ParticipacaoController
 
             return ['status' => 201, 'message' => 'Inscrição realizada com sucesso'];
         } catch (PDOException $e) {
+            error_log("🎫 PARTICIPAÇÃO DEBUG - Erro PDO: " . $e->getMessage());
             return ['status' => 500, 'message' => $e->getMessage()];
         }
     }
@@ -62,11 +68,13 @@ class ParticipacaoController
      */
     public function cancelarParticipacao($user, $id_evento)
     {
-        if ($user->tipo !== 'usuario') {
+        // CORREÇÃO: Acessar como array
+        if (!isset($user['tipo']) || $user['tipo'] !== 'usuario') {
             return ['status' => 403, 'message' => 'Somente usuários podem cancelar participações'];
         }
 
-        $id_usuario = $user->id;
+        // CORREÇÃO: Acessar como array
+        $id_usuario = $user['id_usuario'] ?? $user['id'];
 
         try {
             $stmt = $this->conn->prepare(
@@ -91,11 +99,13 @@ class ParticipacaoController
      */
     public function listarMinhasParticipacoes($user)
     {
-        if ($user->tipo !== 'usuario') {
+        // CORREÇÃO: Acessar como array
+        if (!isset($user['tipo']) || $user['tipo'] !== 'usuario') {
             return ['status' => 403, 'message' => 'Apenas usuários podem listar suas participações'];
         }
 
-        $id_usuario = $user->id;
+        // CORREÇÃO: Acessar como array
+        $id_usuario = $user['id_usuario'] ?? $user['id'];
 
         try {
             $stmt = $this->conn->prepare("
@@ -121,7 +131,8 @@ class ParticipacaoController
      */
     public function listarParticipantes($user, $id_evento)
     {
-        if ($user->tipo !== 'asilo') {
+        // CORREÇÃO: Acessar como array
+        if (!isset($user['tipo']) || $user['tipo'] !== 'asilo') {
             return ['status' => 403, 'message' => 'Apenas asilos podem ver participantes'];
         }
 
@@ -131,7 +142,9 @@ class ParticipacaoController
                 "SELECT * FROM eventos WHERE id_evento = :id_evento AND id_asilo = :id_asilo"
             );
             $stmtEvento->bindParam(':id_evento', $id_evento);
-            $id_asilo = $user->id;
+            
+            // CORREÇÃO: Acessar como array
+            $id_asilo = $user['id_asilo'] ?? $user['id'];
             $stmtEvento->bindParam(':id_asilo', $id_asilo);
             $stmtEvento->execute();
 
@@ -157,3 +170,4 @@ class ParticipacaoController
         }
     }
 }
+?>
