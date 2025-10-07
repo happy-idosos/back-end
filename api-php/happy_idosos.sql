@@ -38,6 +38,7 @@ CREATE TABLE asilos (
 );
 
 -- Tabela de reset de senha (suporta usuários e asilos)
+
 CREATE TABLE reset_senha (
     id_reset INT AUTO_INCREMENT PRIMARY KEY,
     id_usuario INT NULL,

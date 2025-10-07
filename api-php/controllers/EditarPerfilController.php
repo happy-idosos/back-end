@@ -14,8 +14,8 @@ class EditarPerfilController {
         // Verifica autenticação
         $user = AuthMiddleware::requireType('usuario');
         
-        if (!$user || !isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado'];
+        if (!isset($user['id_usuario'])) {
+            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
         }
 
         $id_usuario = $user['id_usuario'];
@@ -94,8 +94,8 @@ class EditarPerfilController {
         // Verifica autenticação
         $user = AuthMiddleware::requireType('usuario');
         
-        if (!$user || !isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado'];
+        if (!isset($user['id_usuario'])) {
+            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
         }
 
         $id_usuario = $user['id_usuario'];
@@ -129,11 +129,18 @@ class EditarPerfilController {
                 // Update
                 $sql = "UPDATE perfil_voluntario SET " . implode(', ', $updates) . ", atualizado_em = NOW() WHERE id_usuario = :id_usuario";
             } else {
-                // Insert
-                $campos = array_keys($params);
-                $placeholders = array_map(function($key) { return ltrim($key, ':'); }, $campos);
+                // Insert - inclui o id_usuario
+                $campos = ['id_usuario'];
+                $placeholders = [':id_usuario'];
                 
-                $sql = "INSERT INTO perfil_voluntario (" . implode(', ', $placeholders) . ") VALUES (" . implode(', ', $campos) . ")";
+                foreach ($camposPermitidos as $campo) {
+                    if (isset($input[$campo])) {
+                        $campos[] = $campo;
+                        $placeholders[] = ":$campo";
+                    }
+                }
+                
+                $sql = "INSERT INTO perfil_voluntario (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $placeholders) . ")";
             }
 
             $stmt = $this->conn->prepare($sql);
@@ -161,8 +168,8 @@ class EditarPerfilController {
     public function buscarPerfil() {
         $user = AuthMiddleware::requireType('usuario');
         
-        if (!$user || !isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado'];
+        if (!isset($user['id_usuario'])) {
+            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
         }
 
         $id_usuario = $user['id_usuario'];
@@ -209,7 +216,8 @@ class EditarPerfilController {
         ");
         $stmt->bindParam(':id_usuario', $id_usuario);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ?: null;
     }
 
     /**

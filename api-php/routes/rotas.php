@@ -113,18 +113,14 @@ $routes = [
         ));
     }],
 
-    ['GET', '/api/reset-senha', function () use ($conn) {
-        $token = $_GET['token'] ?? null;
-        if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
-
-        $stmt = $conn->prepare("SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()");
-        $stmt->bindParam(":token", $token);
-        $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$row) return ['status' => 400, 'message' => 'Token inválido ou expirado'];
-        return ['status' => 200, 'message' => 'Token válido', 'token' => $token];
-    }],
+['GET', '/api/reset-senha', function() use ($esqueceuSenhaController) {
+    // valida token via query string ?token=...
+    $token = $_GET['token'] ?? null;
+    if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
+    
+    // Usa o método do controller em vez de fazer consulta direta
+    return safeCall(fn() => $esqueceuSenhaController->validarToken($token));
+}],
 
     // Eventos - listagem pública
     ['GET', '/api/eventos', function () use ($eventoController) {
@@ -225,7 +221,7 @@ $routes = [
     ['GET', '/api/perfil', function () use ($editarPerfilController) {
         return safeCall(fn() => $editarPerfilController->buscarPerfil());
     }],
-    
+
 ];
 
 // Implementação da função route()
