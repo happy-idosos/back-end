@@ -24,6 +24,12 @@ JWT_SECRET=57VZok7RCkLdi0IGV4iDLRHmOcZU3Sed0GMjr5egCZc=
 
 ```
 
+Baixe o composer.phar
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" php composer-setup.php php -r "unlink('composer-setup.php');"
+
+Use o composer localmente
+php composer.phar install
+
 cd api-php
 
 composer install
