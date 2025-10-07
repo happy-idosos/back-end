@@ -117,4 +117,18 @@ CREATE TABLE contatos (
     INDEX idx_criado (criado_em)
 );
 
+-- Tabela para perfil de voluntário (campos opcionais)
+CREATE TABLE perfil_voluntario (
+    id_perfil INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL UNIQUE,
+    habilidades TEXT,
+    competencias TEXT,
+    disponibilidade TEXT,
+    sobre_voce TEXT,
+    foto_perfil VARCHAR(500),
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+    INDEX idx_usuario (id_usuario)
+);
 

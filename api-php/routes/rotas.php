@@ -25,6 +25,7 @@ $esqueceuSenhaController   = class_exists('EsqueceuSenhaController') ? new Esque
 $eventoController          = class_exists('EventoController') ? new EventoController($conn) : null;
 $participacaoController    = class_exists('ParticipacaoController') ? new ParticipacaoController($conn) : null;
 $contatoController         = class_exists('ContatoController') ? new ContatoController($conn) : null;
+$editarPerfilController = class_exists('EditarPerfilController') ? new EditarPerfilController($conn) : null;
 
 // Helpers 
 if (!function_exists('getJsonInput')) {
@@ -55,93 +56,93 @@ if (!function_exists('safeCall')) {
 // Definição de rotas
 $routes = [
     // ========== ROTAS PÚBLICAS ==========
-    
+
     // Health check
-    ['GET', '/', function() {
+    ['GET', '/', function () {
         return ['status' => 200, 'message' => 'API Happy Idosos funcionando'];
     }],
 
-    ['GET', '/api', function() {
+    ['GET', '/api', function () {
         return ['status' => 200, 'message' => 'API Happy Idosos v1.0'];
     }],
 
     // Cadastro (público)
-    ['POST', '/api/cadastro/usuario', function() use ($cadastroUsuarioController) {
+    ['POST', '/api/cadastro/usuario', function () use ($cadastroUsuarioController) {
         $input = getJsonInput();
         return safeCall(fn() => $cadastroUsuarioController->cadastrar($input));
     }],
 
-    ['POST', '/api/cadastro/asilo', function() use ($cadastroAsiloController) {
+    ['POST', '/api/cadastro/asilo', function () use ($cadastroAsiloController) {
         $input = getJsonInput();
         return safeCall(fn() => $cadastroAsiloController->cadastrar($input));
     }],
 
     // Login (público)
-    ['POST', '/api/login', function() use ($loginController) {
+    ['POST', '/api/login', function () use ($loginController) {
         $input = getJsonInput();
         return safeCall(fn() => $loginController->login($input));
     }],
 
     // Listagens públicas
-    ['GET', '/api/usuarios', function() use ($listagemController) {
+    ['GET', '/api/usuarios', function () use ($listagemController) {
         return safeCall(fn() => $listagemController->listarUsuarios());
     }],
 
-    ['GET', '/api/asilos', function() use ($listagemController) {
+    ['GET', '/api/asilos', function () use ($listagemController) {
         return safeCall(fn() => $listagemController->listarAsilos());
     }],
 
     // Filtrar asilos (público)
-    ['POST', '/api/filtra/asilos', function() use ($filtraAsiloController) {
+    ['POST', '/api/filtra/asilos', function () use ($filtraAsiloController) {
         $input = getJsonInput();
         return safeCall(fn() => $filtraAsiloController->filtrar($input));
     }],
 
     // Recuperação de senha (público)
-    ['POST', '/api/esqueceu-senha', function() use ($esqueceuSenhaController) {
+    ['POST', '/api/esqueceu-senha', function () use ($esqueceuSenhaController) {
         $input = getJsonInput();
         $email = $input['email'] ?? null;
         return safeCall(fn() => $esqueceuSenhaController->solicitarReset($email));
     }],
 
-    ['POST', '/api/reset-senha', function() use ($esqueceuSenhaController) {
+    ['POST', '/api/reset-senha', function () use ($esqueceuSenhaController) {
         $input = getJsonInput();
         return safeCall(fn() => $esqueceuSenhaController->redefinirSenha(
-            $input['token'] ?? null, 
+            $input['token'] ?? null,
             $input['novaSenha'] ?? null
         ));
     }],
 
-    ['GET', '/api/reset-senha', function() use ($conn) {
+    ['GET', '/api/reset-senha', function () use ($conn) {
         $token = $_GET['token'] ?? null;
         if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
-        
+
         $stmt = $conn->prepare("SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()");
         $stmt->bindParam(":token", $token);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$row) return ['status' => 400, 'message' => 'Token inválido ou expirado'];
         return ['status' => 200, 'message' => 'Token válido', 'token' => $token];
     }],
 
     // Eventos - listagem pública
-    ['GET', '/api/eventos', function() use ($eventoController) {
+    ['GET', '/api/eventos', function () use ($eventoController) {
         return safeCall(fn() => $eventoController->listarEventos());
     }],
 
-    ['GET', '/api/eventos/:id', function() use ($eventoController) {
+    ['GET', '/api/eventos/:id', function () use ($eventoController) {
         $id_evento = $_GET['id'] ?? null;
         return safeCall(fn() => $eventoController->buscarEvento($id_evento));
     }],
 
     // Vídeos - listagem pública
-    ['GET', '/api/videos', function() use ($videoController) {
+    ['GET', '/api/videos', function () use ($videoController) {
         return safeCall(fn() => $videoController->listarVideos());
     }],
 
     // Contato (público)
-    ['POST', '/api/contato', function() use ($contatoController) {
+    ['POST', '/api/contato', function () use ($contatoController) {
         $input = getJsonInput();
         $arquivo = $_FILES['arquivo'] ?? null;
         return safeCall(fn() => $contatoController->enviar($input, $arquivo));
@@ -150,7 +151,7 @@ $routes = [
     // ========== ROTAS PROTEGIDAS (REQUEREM AUTENTICAÇÃO) ==========
 
     // Eventos - criar (apenas asilos)
-    ['POST', '/api/eventos/criar', function() use ($eventoController) {
+    ['POST', '/api/eventos/criar', function () use ($eventoController) {
         $user = AuthMiddleware::requireType('asilo');
         $input = getJsonInput();
         return safeCall(fn() => $eventoController->criarEvento(
@@ -162,7 +163,7 @@ $routes = [
     }],
 
     // Participações - participar de evento (apenas usuários)
-    ['POST', '/api/eventos/participar', function() use ($participacaoController) {
+    ['POST', '/api/eventos/participar', function () use ($participacaoController) {
         $user = AuthMiddleware::requireType('usuario');
         $input = getJsonInput();
         return safeCall(fn() => $participacaoController->participarEvento(
@@ -172,7 +173,7 @@ $routes = [
     }],
 
     // Participações - cancelar participação (apenas usuários)
-    ['DELETE', '/api/eventos/participar', function() use ($participacaoController) {
+    ['DELETE', '/api/eventos/participar', function () use ($participacaoController) {
         $user = AuthMiddleware::requireType('usuario');
         $input = getJsonInput();
         return safeCall(fn() => $participacaoController->cancelarParticipacao(
@@ -182,30 +183,47 @@ $routes = [
     }],
 
     // Participações - listar minhas participações (apenas usuários)
-    ['GET', '/api/eventos/meus', function() use ($participacaoController) {
+    ['GET', '/api/eventos/meus', function () use ($participacaoController) {
         $user = AuthMiddleware::requireType('usuario');
         return safeCall(fn() => $participacaoController->listarMinhasParticipacoes($user));
     }],
 
     // Participações - listar participantes de um evento (apenas asilos)
-    ['GET', '/api/eventos/:id/participantes', function() use ($participacaoController) {
+    ['GET', '/api/eventos/:id/participantes', function () use ($participacaoController) {
         $user = AuthMiddleware::requireType('asilo');
         $id_evento = $_GET['id'] ?? null;
         return safeCall(fn() => $participacaoController->listarParticipantes($user, $id_evento));
     }],
 
     // Vídeos - upload (requer autenticação)
-    ['POST', '/api/videos', function() use ($videoController) {
+    ['POST', '/api/videos', function () use ($videoController) {
         $user = AuthMiddleware::requireAuth();
         $input = getJsonInput();
         return safeCall(fn() => $videoController->uploadVideo($user, $_FILES ?? [], $input));
     }],
 
     // Vídeos - deletar (apenas autor)
-    ['DELETE', '/api/videos/:id', function() use ($videoController) {
+    ['DELETE', '/api/videos/:id', function () use ($videoController) {
         $user = AuthMiddleware::requireAuth();
         $id_midia = $_GET['id'] ?? null;
         return safeCall(fn() => $videoController->deletarVideo($user, $id_midia));
+    }],
+
+    // Editar perfil básico
+    ['PUT', '/api/perfil/editar', function () use ($editarPerfilController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $editarPerfilController->editarPerfil($input));
+    }],
+
+    // Editar perfil voluntário (campos opcionais)
+    ['PUT', '/api/perfil/voluntario', function () use ($editarPerfilController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $editarPerfilController->editarPerfilVoluntario($input));
+    }],
+
+    // Buscar perfil completo
+    ['GET', '/api/perfil', function () use ($editarPerfilController) {
+        return safeCall(fn() => $editarPerfilController->buscarPerfil());
     }],
 ];
 
@@ -221,7 +239,7 @@ if (!function_exists('route')) {
 
         foreach ($routes as $r) {
             [$m, $u, $handler] = $r;
-            
+
             if (strtoupper($method) !== strtoupper($m)) continue;
 
             // Rota exata
@@ -236,17 +254,17 @@ if (!function_exists('route')) {
             // Rota com parâmetros dinâmicos (ex: /api/eventos/:id)
             $pattern = preg_replace('/:\w+/', '([^/]+)', $u);
             $pattern = '#^' . $pattern . '$#';
-            
+
             if (preg_match($pattern, $uri, $matches)) {
                 array_shift($matches); // Remove o match completo
-                
+
                 // Extrai nomes dos parâmetros
                 preg_match_all('/:(\w+)/', $u, $paramNames);
                 $params = array_combine($paramNames[1], $matches);
-                
+
                 // Adiciona parâmetros ao $_GET
                 $_GET = array_merge($_GET, $params);
-                
+
                 $res = $handler();
                 if (is_null($res)) {
                     return ['status' => 204, 'message' => 'Sem conteúdo'];
