@@ -127,11 +127,9 @@ $routes = [
     }],
 
     ['GET', '/api/reset-senha', function() use ($esqueceuSenhaController) {
-        // valida token via query string ?token=...
         $token = $_GET['token'] ?? null;
         if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
         
-        // Usa o método do controller em vez de fazer consulta direta
         return safeCall(fn() => $esqueceuSenhaController->validarToken($token));
     }],
 
@@ -167,7 +165,10 @@ $routes = [
             $user,
             $input['titulo'] ?? null,
             $input['descricao'] ?? null,
-            $input['data_evento'] ?? null
+            $input['data_evento'] ?? null,
+            $input['data_fim'] ?? null,
+            $input['local'] ?? null,
+            $input['vagas'] ?? null
         ));
     }],
 
@@ -222,23 +223,27 @@ $routes = [
     
     // Buscar perfil completo do voluntário
     ['GET', '/api/perfil/voluntario', function () use ($editarVoluntarioController) {
+        $user = AuthMiddleware::requireType('usuario');
         return safeCall(fn() => $editarVoluntarioController->buscarPerfil());
     }],
 
     // Editar perfil básico do voluntário
     ['PUT', '/api/perfil/voluntario/basico', function () use ($editarVoluntarioController) {
+        $user = AuthMiddleware::requireType('usuario');
         $input = getJsonInput();
         return safeCall(fn() => $editarVoluntarioController->editarPerfil($input));
     }],
 
     // Editar perfil voluntário (campos opcionais)
     ['PUT', '/api/perfil/voluntario/detalhes', function () use ($editarVoluntarioController) {
+        $user = AuthMiddleware::requireType('usuario');
         $input = getJsonInput();
         return safeCall(fn() => $editarVoluntarioController->editarPerfilVoluntario($input));
     }],
 
     // Upload de foto para voluntário
     ['POST', '/api/perfil/voluntario/foto', function () use ($editarVoluntarioController) {
+        $user = AuthMiddleware::requireType('usuario');
         $foto = $_FILES['foto_perfil'] ?? null;
         return safeCall(fn() => $editarVoluntarioController->uploadFotoPerfil($foto));
     }],
@@ -247,25 +252,42 @@ $routes = [
 
     // Buscar perfil completo do asilo
     ['GET', '/api/perfil/asilo', function () use ($editarAsiloController) {
+        $user = AuthMiddleware::requireType('asilo');
         return safeCall(fn() => $editarAsiloController->buscarPerfilAsilo());
     }],
 
     // Editar perfil básico do asilo
     ['PUT', '/api/perfil/asilo/basico', function () use ($editarAsiloController) {
+        $user = AuthMiddleware::requireType('asilo');
         $input = getJsonInput();
         return safeCall(fn() => $editarAsiloController->editarPerfilAsilo($input));
     }],
 
     // Editar perfil asilo (campos opcionais/detalhes)
     ['PUT', '/api/perfil/asilo/detalhes', function () use ($editarAsiloController) {
+        $user = AuthMiddleware::requireType('asilo');
         $input = getJsonInput();
         return safeCall(fn() => $editarAsiloController->editarPerfilAsiloDetalhes($input));
     }],
 
     // Upload de foto para asilo
     ['POST', '/api/perfil/asilo/foto', function () use ($editarAsiloController) {
+        $user = AuthMiddleware::requireType('asilo');
         $foto = $_FILES['foto_perfil'] ?? null;
         return safeCall(fn() => $editarAsiloController->uploadFotoPerfil($foto));
+    }],
+
+    // ========== ROTA DE VERIFICAÇÃO DE TOKEN ==========
+    ['GET', '/api/verify-token', function () {
+        $user = AuthMiddleware::verifyAuth();
+        if (!$user) {
+            return ['status' => 401, 'message' => 'Token inválido'];
+        }
+        return [
+            'status' => 200, 
+            'message' => 'Token válido',
+            'user' => $user
+        ];
     }],
 
 ];
@@ -319,3 +341,4 @@ if (!function_exists('route')) {
         return false; // Rota não encontrada
     }
 }
+?>

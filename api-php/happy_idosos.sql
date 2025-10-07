@@ -1,5 +1,5 @@
 -- ============================================
--- BANCO DE DADOS HAPPY IDOSOS - SCHEMA COMPLETO
+-- BANCO DE DADOS HAPPY IDOSOS - SCHEMA COMPLETO ATUALIZADO
 -- ============================================
 
 DROP DATABASE IF EXISTS happy_idosos;
@@ -7,7 +7,7 @@ CREATE DATABASE happy_idosos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE happy_idosos;
 
 -- ============================================
--- TABELA DE USUÁRIOS (VOLUNTÁRIOS)
+-- TABELA DE USUÁRIOS (VOLUNTÁRIOS) - ATUALIZADA
 -- ============================================
 CREATE TABLE usuarios (
     id_usuario INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,6 +17,12 @@ CREATE TABLE usuarios (
     data_nascimento DATE,
     email VARCHAR(128) UNIQUE NOT NULL,
     senha VARCHAR(255) NOT NULL,
+    
+    -- NOVOS CAMPOS ADICIONADOS
+    endereco VARCHAR(255) COMMENT 'Endereço completo do voluntário',
+    cidade VARCHAR(100) COMMENT 'Cidade do voluntário',
+    estado VARCHAR(2) COMMENT 'Estado (UF) do voluntário',
+    cep VARCHAR(9) COMMENT 'CEP do voluntário',
     
     -- Campos de perfil do voluntário
     habilidades TEXT COMMENT 'Habilidades e competências do voluntário',
@@ -33,7 +39,9 @@ CREATE TABLE usuarios (
     INDEX idx_email (email),
     INDEX idx_cpf (cpf),
     INDEX idx_ativo (ativo),
-    INDEX idx_criado (criado_em)
+    INDEX idx_criado (criado_em),
+    INDEX idx_cidade (cidade),
+    INDEX idx_estado (estado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -286,17 +294,33 @@ CREATE TABLE notificacoes (
 -- DADOS DE EXEMPLO (OPCIONAL - REMOVER EM PRODUÇÃO)
 -- ============================================
 
--- Usuário de teste
-INSERT INTO usuarios (cpf, nome, telefone, data_nascimento, email, senha, habilidades, disponibilidade, sobre_voce) VALUES
-('12345678901', 'João Silva', '11987654321', '1990-05-15', 'joao@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Música, Leitura, Artesanato', 'Sábados e Domingos pela manhã', 'Sou voluntário há 3 anos e adoro trabalhar com idosos.');
+-- Usuário de teste COM DADOS COMPLETOS
+INSERT INTO usuarios (cpf, nome, telefone, data_nascimento, email, senha, endereco, cidade, estado, cep, habilidades, disponibilidade, sobre_voce) VALUES
+('12345678901', 'João Silva', '(11) 98765-4321', '1990-05-15', 'joao@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Rua das Flores, 123 - Centro', 'São Paulo', 'SP', '01234-567', 'Música, Leitura, Artesanato', 'Sábados e Domingos pela manhã', 'Sou voluntário há 3 anos e adoro trabalhar com idosos. Tenho experiência em atividades recreativas e acompanhamento.');
+
+-- Usuário adicional para testes
+INSERT INTO usuarios (cpf, nome, telefone, data_nascimento, email, senha, endereco, cidade, estado, cep, habilidades, disponibilidade, sobre_voce) VALUES
+('98765432100', 'Maria Santos', '(11) 91234-5678', '1985-08-20', 'maria@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Av. Paulista, 1000 - Bela Vista', 'São Paulo', 'SP', '01310-100', 'Contação de histórias, Dança, Jogos', 'Finais de semana à tarde', 'Adoro trazer alegria para os idosos através de atividades lúdicas e conversas.');
 
 -- Asilo de teste
 INSERT INTO asilos (cnpj, nome, endereco, cidade, estado, cep, latitude, longitude, telefone, email, senha, descricao, capacidade) VALUES
-('12345678000190', 'Lar dos Idosos Felizes', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234-567', -23.550520, -46.633308, '1133334444', 'contato@larfeliz.com.br', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Asilo dedicado ao cuidado e bem-estar de idosos', 50);
+('12345678000190', 'Lar dos Idosos Felizes', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234-567', -23.550520, -46.633308, '(11) 3333-4444', 'contato@larfeliz.com.br', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Asilo dedicado ao cuidado e bem-estar de idosos há mais de 20 anos. Oferecemos atividades recreativas, acompanhamento médico e muito carinho.', 50);
 
--- Evento de teste
+-- Asilo adicional para testes
+INSERT INTO asilos (cnpj, nome, endereco, cidade, estado, cep, latitude, longitude, telefone, email, senha, descricao, capacidade, verificado) VALUES
+('98765432000101', 'Casa de Repouso Esperança', 'Rua das Palmeiras, 456', 'Rio de Janeiro', 'RJ', '22010-000', -22.9068, -43.1729, '(21) 2222-3333', 'contato@esperanca.com.br', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Instituição filantrópica que acolhe idosos em situação de vulnerabilidade. Trabalhamos com amor e dedicação.', 35, TRUE);
+
+-- Eventos de teste
 INSERT INTO eventos (titulo, descricao, data_evento, data_fim, local, vagas, id_asilo) VALUES
-('Tarde Musical', 'Tarde de música e entretenimento com os idosos', '2025-01-15 14:00:00', '2025-01-15 17:00:00', 'Salão Principal', 10, 1);
+('Tarde Musical', 'Tarde de música e entretenimento com os idosos. Traga seu instrumento e venha compartilhar momentos de alegria!', '2025-01-15 14:00:00', '2025-01-15 17:00:00', 'Salão Principal', 10, 1),
+('Oficina de Artesanato', 'Workshop de artesanato para idosos. Vamos criar lindas peças decorativas e trabalhar a coordenação motora.', '2025-01-20 09:00:00', '2025-01-20 12:00:00', 'Sala de Atividades', 8, 1),
+('Roda de Conversa', 'Momento de descontração e troca de experiências com os idosos. Venha ouvir histórias incríveis!', '2025-01-25 15:00:00', '2025-01-25 16:30:00', 'Jardim Interno', 15, 2);
+
+-- Participações de teste
+INSERT INTO participacoes (id_evento, id_usuario, status) VALUES
+(1, 1, 'confirmado'),
+(1, 2, 'confirmado'),
+(2, 1, 'confirmado');
 
 -- ============================================
 -- VIEWS ÚTEIS
@@ -310,9 +334,12 @@ SELECT
     a.cidade,
     a.estado,
     a.endereco,
+    a.telefone AS telefone_asilo,
+    a.email AS email_asilo,
     (e.vagas - e.vagas_ocupadas) AS vagas_disponiveis
 FROM eventos e
-INNER JOIN asilos a ON e.id_asilo = a.id_asilo;
+INNER JOIN asilos a ON e.id_asilo = a.id_asilo
+WHERE e.status = 'ativo' AND a.ativo = TRUE;
 
 -- View de participações com informações completas
 CREATE VIEW vw_participacoes_completas AS
@@ -321,13 +348,41 @@ SELECT
     u.nome AS nome_usuario,
     u.email AS email_usuario,
     u.telefone AS telefone_usuario,
+    u.foto_perfil AS foto_usuario,
     e.titulo AS titulo_evento,
     e.data_evento,
-    a.nome AS nome_asilo
+    e.data_fim,
+    e.local AS local_evento,
+    a.nome AS nome_asilo,
+    a.cidade AS cidade_asilo
 FROM participacoes p
 INNER JOIN usuarios u ON p.id_usuario = u.id_usuario
 INNER JOIN eventos e ON p.id_evento = e.id_evento
 INNER JOIN asilos a ON e.id_asilo = a.id_asilo;
+
+-- View de usuários completos para perfil
+CREATE VIEW vw_usuarios_completos AS
+SELECT 
+    id_usuario,
+    cpf,
+    nome,
+    telefone,
+    data_nascimento,
+    email,
+    endereco,
+    cidade,
+    estado,
+    cep,
+    habilidades,
+    disponibilidade,
+    sobre_voce,
+    foto_perfil,
+    ativo,
+    criado_em,
+    atualizado_em,
+    TIMESTAMPDIFF(YEAR, data_nascimento, CURDATE()) AS idade
+FROM usuarios
+WHERE ativo = TRUE;
 
 -- ============================================
 -- TRIGGERS
@@ -362,6 +417,54 @@ BEGIN
         SET vagas_ocupadas = vagas_ocupadas + 1 
         WHERE id_evento = NEW.id_evento;
     END IF;
+END//
+
+-- Trigger para garantir que vagas_ocupadas não seja negativo
+CREATE TRIGGER trg_participacao_before_update
+BEFORE UPDATE ON eventos
+FOR EACH ROW
+BEGIN
+    IF NEW.vagas_ocupadas < 0 THEN
+        SET NEW.vagas_ocupadas = 0;
+    END IF;
+    
+    IF NEW.vagas_ocupadas > NEW.vagas THEN
+        SET NEW.vagas_ocupadas = NEW.vagas;
+    END IF;
+END//
+
+DELIMITER ;
+
+-- ============================================
+-- PROCEDURES ÚTEIS
+-- ============================================
+
+DELIMITER //
+
+-- Procedure para buscar perfil completo do usuário
+CREATE PROCEDURE sp_buscar_perfil_usuario(IN p_id_usuario INT)
+BEGIN
+    SELECT * FROM vw_usuarios_completos WHERE id_usuario = p_id_usuario;
+END//
+
+-- Procedure para listar eventos disponíveis
+CREATE PROCEDURE sp_listar_eventos_disponiveis()
+BEGIN
+    SELECT * FROM vw_eventos_completos 
+    WHERE data_evento >= NOW() 
+    AND vagas_disponiveis > 0
+    ORDER BY data_evento ASC;
+END//
+
+-- Procedure para contar participações do usuário
+CREATE PROCEDURE sp_contar_participacoes_usuario(IN p_id_usuario INT)
+BEGIN
+    SELECT 
+        COUNT(*) AS total_participacoes,
+        SUM(CASE WHEN status = 'confirmado' THEN 1 ELSE 0 END) AS confirmadas,
+        SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END) AS canceladas
+    FROM participacoes 
+    WHERE id_usuario = p_id_usuario;
 END//
 
 DELIMITER ;

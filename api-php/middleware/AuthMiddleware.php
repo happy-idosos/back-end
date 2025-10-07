@@ -1,26 +1,50 @@
 <?php
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use \Firebase\JWT\JWT;
+use \Firebase\JWT\Key;
 
 class AuthMiddleware {
     
-    public static function requireAuth() {
+    private static $jwtSecret;
+    
+    private static function getJwtSecret() {
+        if (!self::$jwtSecret) {
+            self::$jwtSecret = $_ENV['JWT_SECRET'] ?? null;
+            if (!self::$jwtSecret) {
+                throw new Exception("JWT_SECRET não definido no ambiente.");
+            }
+        }
+        return self::$jwtSecret;
+    }
+    
+    public static function verifyAuth() {
         $headers = getallheaders();
         $token = $headers['Authorization'] ?? $headers['authorization'] ?? null;
         
         if (!$token) {
-            http_response_code(401);
-            echo json_encode(['status' => 401, 'message' => 'Token de autenticação não fornecido']);
-            exit;
+            return null;
         }
         
         // Remove "Bearer " se presente
         $token = str_replace('Bearer ', '', $token);
         
-        // Decodifica o token JWT (você precisa ter uma função para decodificar JWT)
+        // Decodifica o token JWT usando a biblioteca Firebase JWT
         $user = self::decodeJWT($token);
         
         if (!$user) {
+            return null;
+        }
+        
+        return $user;
+    }
+    
+    public static function requireAuth() {
+        $user = self::verifyAuth();
+        
+        if (!$user) {
             http_response_code(401);
-            echo json_encode(['status' => 401, 'message' => 'Token inválido ou expirado']);
+            echo json_encode(['status' => 401, 'message' => 'Token de autenticação não fornecido ou inválido']);
             exit;
         }
         
@@ -31,15 +55,9 @@ class AuthMiddleware {
         $user = self::requireAuth();
         
         // Verifica se o tipo do usuário corresponde ao esperado
-        if ($type === 'usuario' && !isset($user['id_usuario'])) {
+        if ($user['tipo'] !== $type) {
             http_response_code(403);
-            echo json_encode(['status' => 403, 'message' => 'Acesso permitido apenas para usuários']);
-            exit;
-        }
-        
-        if ($type === 'asilo' && !isset($user['id_asilo'])) {
-            http_response_code(403);
-            echo json_encode(['status' => 403, 'message' => 'Acesso permitido apenas para asilos']);
+            echo json_encode(['status' => 403, 'message' => "Acesso permitido apenas para {$type}s"]);
             exit;
         }
         
@@ -47,26 +65,28 @@ class AuthMiddleware {
     }
     
     private static function decodeJWT($token) {
-        // Implementação básica - você deve usar uma biblioteca JWT real
-        // Esta é uma implementação simplificada para demonstração
-        
         try {
-            // Divide o token JWT
-            $parts = explode('.', $token);
-            if (count($parts) !== 3) {
-                return null;
-            }
+            // Decodifica o token usando a biblioteca Firebase JWT
+            $secret = self::getJwtSecret();
+            $decoded = JWT::decode($token, new Key($secret, 'HS256'));
             
-            // Decodifica o payload
-            $payload = json_decode(base64_decode($parts[1]), true);
+            // Converte para array
+            $decodedArray = (array) $decoded;
+            $data = (array) $decodedArray['data'];
             
-            if (!$payload || !isset($payload['exp']) || $payload['exp'] < time()) {
-                return null;
-            }
-            
-            return $payload;
+            // Retorna no formato esperado pelos controllers
+            return [
+                'id' => $data['id'],
+                'nome' => $data['nome'],
+                'email' => $data['email'],
+                'tipo' => $data['tipo'],
+                // Adiciona campos específicos para compatibilidade
+                'id_usuario' => $data['tipo'] === 'usuario' ? $data['id'] : null,
+                'id_asilo' => $data['tipo'] === 'asilo' ? $data['id'] : null
+            ];
             
         } catch (Exception $e) {
+            error_log("Erro ao decodificar JWT: " . $e->getMessage());
             return null;
         }
     }

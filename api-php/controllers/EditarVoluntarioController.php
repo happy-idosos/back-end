@@ -9,7 +9,7 @@ class EditarVoluntarioController {
     }
 
     /**
-     * Edita o perfil básico do voluntário (dados do cadastro)
+     * Edita o perfil básico do voluntário
      */
     public function editarPerfil($input) {
         $user = AuthMiddleware::verifyAuth();
@@ -38,8 +38,8 @@ class EditarVoluntarioController {
         try {
             $this->conn->beginTransaction();
 
-            // Campos do cadastro (UPDATE) - CORRIGIDO com campos reais
-            $camposPermitidos = ['cpf', 'nome', 'telefone', 'data_nascimento', 'email'];
+            // Campos do cadastro básico
+            $camposPermitidos = ['cpf', 'nome', 'telefone', 'data_nascimento', 'email', 'endereco', 'cidade', 'estado', 'cep'];
             $updates = [];
             $params = [':id_usuario' => $id_usuario];
 
@@ -82,7 +82,7 @@ class EditarVoluntarioController {
     }
 
     /**
-     * Adiciona ou atualiza campos do perfil voluntário (estão na própria tabela usuarios)
+     * Adiciona ou atualiza campos do perfil voluntário
      */
     public function editarPerfilVoluntario($input) {
         $user = AuthMiddleware::verifyAuth();
@@ -95,7 +95,7 @@ class EditarVoluntarioController {
         try {
             $this->conn->beginTransaction();
 
-            // Campos do perfil voluntário - CORRIGIDO: estão na tabela usuarios
+            // Campos do perfil voluntário
             $camposPermitidos = ['habilidades', 'disponibilidade', 'sobre_voce', 'foto_perfil'];
             $updates = [];
             $params = [':id_usuario' => $id_usuario];
@@ -111,7 +111,6 @@ class EditarVoluntarioController {
                 return ['status' => 400, 'message' => 'Nenhum campo válido para atualização'];
             }
 
-            // SEMPRE UPDATE - campos estão na tabela usuarios
             $sql = "UPDATE usuarios SET " . implode(', ', $updates) . ", atualizado_em = NOW() WHERE id_usuario = :id_usuario";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute($params);
@@ -160,7 +159,7 @@ class EditarVoluntarioController {
 
         try {
             // Criar diretório de uploads se não existir
-            $uploadDir = __DIR__ . '/../uploads/voluntarios/';
+            $uploadDir = __DIR__ . '/../../uploads/voluntarios/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);
             }
@@ -213,15 +212,27 @@ class EditarVoluntarioController {
         $id_usuario = $user['id_usuario'];
 
         try {
-            $usuario = $this->buscarUsuario($id_usuario);
-            $perfilVoluntario = $this->buscarPerfilVoluntario($id_usuario);
-
-            // Combinar dados em um único objeto para facilitar no frontend
-            $perfilCompleto = array_merge($usuario, $perfilVoluntario);
+            $stmt = $this->conn->prepare("
+                SELECT 
+                    id_usuario, cpf, nome, telefone, data_nascimento, email,
+                    endereco, cidade, estado, cep,
+                    habilidades, disponibilidade, sobre_voce, foto_perfil,
+                    criado_em, atualizado_em
+                FROM usuarios 
+                WHERE id_usuario = :id_usuario
+            ");
+            $stmt->bindParam(':id_usuario', $id_usuario);
+            $stmt->execute();
+            
+            $perfil = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$perfil) {
+                return ['status' => 404, 'message' => 'Perfil não encontrado'];
+            }
 
             return [
                 'status' => 200,
-                'data' => $perfilCompleto
+                'data' => $perfil
             ];
 
         } catch (PDOException $e) {
@@ -231,7 +242,8 @@ class EditarVoluntarioController {
 
     private function buscarUsuario($id_usuario) {
         $stmt = $this->conn->prepare("
-            SELECT id_usuario, cpf, nome, telefone, data_nascimento, email, criado_em, atualizado_em 
+            SELECT id_usuario, cpf, nome, telefone, data_nascimento, email, 
+                   endereco, cidade, estado, cep, criado_em, atualizado_em 
             FROM usuarios 
             WHERE id_usuario = :id_usuario
         ");
