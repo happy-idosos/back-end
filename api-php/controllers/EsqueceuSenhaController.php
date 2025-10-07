@@ -1,4 +1,6 @@
 <?php
+// filepath: api-php/controllers/EsqueceuSenhaController.php
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -66,29 +68,28 @@ class EsqueceuSenhaController
             $id = $usuario['id_usuario'];
             $nome = $usuario['nome'];
             $idUsuario = $id;
+            $idAsilo = null;
         } else {
             $tipo = 'asilo';
             $id = $asilo['id_asilo'];
             $nome = $asilo['nome'];
-            $idUsuario = null; // Para asilos, não temos onde salvar na estrutura antiga
+            $idUsuario = null;
+            $idAsilo = $id;
         }
 
-        // VERIFICAÇÃO: Se é asilo e a tabela não suporta, retorna erro
-        if ($tipo === 'asilo') {
-            return ["status" => 501, "message" => "Recuperação de senha para asilos temporariamente indisponível. Entre em contato com o suporte."];
-        }
-
-        // Remove tokens antigos para este usuário
-        $sqlDelete = "DELETE FROM reset_senha WHERE id_usuario = :id_usuario";
+        $sqlDelete = "DELETE FROM reset_senha WHERE (id_usuario = :id_usuario AND tipo_usuario = 'usuario') OR (id_asilo = :id_asilo AND tipo_usuario = 'asilo')";
         $stmtDelete = $this->conn->prepare($sqlDelete);
-        $stmtDelete->bindParam(":id_usuario", $idUsuario);
+        $stmtDelete->bindParam(":id_usuario", $idUsuario, PDO::PARAM_INT);
+        $stmtDelete->bindParam(":id_asilo", $idAsilo, PDO::PARAM_INT);
         $stmtDelete->execute();
 
-        // Salva token no banco (apenas para usuários)
-        $sqlToken = "INSERT INTO reset_senha (id_usuario, token, expira_em) 
-                     VALUES (:id_usuario, :token, :expira)";
+        // Salva token no banco
+        $sqlToken = "INSERT INTO reset_senha (id_usuario, id_asilo, tipo_usuario, token, expira_em) 
+                     VALUES (:id_usuario, :id_asilo, :tipo_usuario, :token, :expira)";
         $stmtToken = $this->conn->prepare($sqlToken);
-        $stmtToken->bindParam(":id_usuario", $idUsuario);
+        $stmtToken->bindParam(":id_usuario", $idUsuario, PDO::PARAM_INT);
+        $stmtToken->bindParam(":id_asilo", $idAsilo, PDO::PARAM_INT);
+        $stmtToken->bindParam(":tipo_usuario", $tipo);
         $stmtToken->bindParam(":token", $token);
         $stmtToken->bindParam(":expira", $expira);
         
@@ -106,6 +107,7 @@ class EsqueceuSenhaController
             $mail->Password   = $this->smtpPass;
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = $this->smtpPort;
+            $mail->CharSet    = 'UTF-8';
 
             $mail->setFrom($this->smtpFrom, $this->smtpFromName);
             $mail->addAddress($email, $nome);
@@ -148,8 +150,11 @@ class EsqueceuSenhaController
 
     public function redefinirSenha(string $token, string $novaSenha): array
     {
-        // Consulta simplificada para estrutura antiga
-        $sql = "SELECT id_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()";
+        if (empty($token) || empty($novaSenha)) {
+            return ["status" => 400, "message" => "Token e nova senha são obrigatórios."];
+        }
+
+        $sql = "SELECT id_usuario, id_asilo, tipo_usuario FROM reset_senha WHERE token = :token AND expira_em > NOW()";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":token", $token);
         $stmt->execute();
@@ -161,15 +166,18 @@ class EsqueceuSenhaController
 
         $hashSenha = password_hash($novaSenha, PASSWORD_DEFAULT);
         
-        // Atualiza apenas usuários (estrutura antiga)
-        $sqlUpdate = "UPDATE usuarios SET senha = :senha WHERE id_usuario = :id";
+        if ($row['tipo_usuario'] === 'usuario') {
+            $sqlUpdate = "UPDATE usuarios SET senha = :senha WHERE id_usuario = :id";
+            $id = $row['id_usuario'];
+        } else {
+            $sqlUpdate = "UPDATE asilos SET senha = :senha WHERE id_asilo = :id";
+            $id = $row['id_asilo'];
+        }
+
         $stmtUpdate = $this->conn->prepare($sqlUpdate);
         $stmtUpdate->bindParam(":senha", $hashSenha);
-        $stmtUpdate->bindParam(":id", $row['id_usuario']);
-
-        if (!$stmtUpdate->execute()) {
-            return ["status" => 500, "message" => "Erro ao atualizar senha."];
-        }
+        $stmtUpdate->bindParam(":id", $id, PDO::PARAM_INT);
+        $stmtUpdate->execute();
 
         // Remove o token usado
         $sqlDelete = "DELETE FROM reset_senha WHERE token = :token";
@@ -186,7 +194,7 @@ class EsqueceuSenhaController
             return ["status" => 400, "message" => "Token é obrigatório."];
         }
 
-        $sql = "SELECT token, expira_em FROM reset_senha 
+        $sql = "SELECT token, expira_em, tipo_usuario FROM reset_senha 
                 WHERE token = :token AND expira_em > NOW()";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":token", $token);
@@ -197,6 +205,11 @@ class EsqueceuSenhaController
             return ["status" => 400, "message" => "Token inválido ou expirado."];
         }
 
-        return ["status" => 200, "message" => "Token válido.", "token" => $row['token']];
+        return [
+            "status" => 200, 
+            "message" => "Token válido.", 
+            "token" => $row['token'],
+            "tipo_usuario" => $row['tipo_usuario']
+        ];
     }
 }
