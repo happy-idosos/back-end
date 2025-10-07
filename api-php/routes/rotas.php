@@ -25,7 +25,10 @@ $esqueceuSenhaController   = class_exists('EsqueceuSenhaController') ? new Esque
 $eventoController          = class_exists('EventoController') ? new EventoController($conn) : null;
 $participacaoController    = class_exists('ParticipacaoController') ? new ParticipacaoController($conn) : null;
 $contatoController         = class_exists('ContatoController') ? new ContatoController($conn) : null;
-$editarPerfilController = class_exists('EditarPerfilController') ? new EditarPerfilController($conn) : null;
+
+// NOVOS CONTROLLERS PARA EDITAR PERFIL
+$editarVoluntarioController = class_exists('EditarVoluntarioController') ? new EditarVoluntarioController($conn) : null;
+$editarAsiloController = class_exists('EditarAsiloController') ? new EditarAsiloController($conn) : null;
 
 // Helpers 
 if (!function_exists('getJsonInput')) {
@@ -64,6 +67,16 @@ $routes = [
 
     ['GET', '/api', function () {
         return ['status' => 200, 'message' => 'API Happy Idosos v1.0'];
+    }],
+
+    // Health check detalhado
+    ['GET', '/api/health', function () {
+        return [
+            'status' => 200, 
+            'message' => 'API Happy Idosos funcionando perfeitamente',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'version' => '1.0'
+        ];
     }],
 
     // Cadastro (público)
@@ -113,14 +126,14 @@ $routes = [
         ));
     }],
 
-['GET', '/api/reset-senha', function() use ($esqueceuSenhaController) {
-    // valida token via query string ?token=...
-    $token = $_GET['token'] ?? null;
-    if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
-    
-    // Usa o método do controller em vez de fazer consulta direta
-    return safeCall(fn() => $esqueceuSenhaController->validarToken($token));
-}],
+    ['GET', '/api/reset-senha', function() use ($esqueceuSenhaController) {
+        // valida token via query string ?token=...
+        $token = $_GET['token'] ?? null;
+        if (!$token) return ['status' => 400, 'message' => 'Token inválido'];
+        
+        // Usa o método do controller em vez de fazer consulta direta
+        return safeCall(fn() => $esqueceuSenhaController->validarToken($token));
+    }],
 
     // Eventos - listagem pública
     ['GET', '/api/eventos', function () use ($eventoController) {
@@ -205,21 +218,54 @@ $routes = [
         return safeCall(fn() => $videoController->deletarVideo($user, $id_midia));
     }],
 
-    // Editar perfil básico
-    ['PUT', '/api/perfil/editar', function () use ($editarPerfilController) {
+    // ========== ROTAS DE PERFIL VOLUNTÁRIO ==========
+    
+    // Buscar perfil completo do voluntário
+    ['GET', '/api/perfil/voluntario', function () use ($editarVoluntarioController) {
+        return safeCall(fn() => $editarVoluntarioController->buscarPerfil());
+    }],
+
+    // Editar perfil básico do voluntário
+    ['PUT', '/api/perfil/voluntario/basico', function () use ($editarVoluntarioController) {
         $input = getJsonInput();
-        return safeCall(fn() => $editarPerfilController->editarPerfil($input));
+        return safeCall(fn() => $editarVoluntarioController->editarPerfil($input));
     }],
 
     // Editar perfil voluntário (campos opcionais)
-    ['PUT', '/api/perfil/voluntario', function () use ($editarPerfilController) {
+    ['PUT', '/api/perfil/voluntario/detalhes', function () use ($editarVoluntarioController) {
         $input = getJsonInput();
-        return safeCall(fn() => $editarPerfilController->editarPerfilVoluntario($input));
+        return safeCall(fn() => $editarVoluntarioController->editarPerfilVoluntario($input));
     }],
 
-    // Buscar perfil completo
-    ['GET', '/api/perfil', function () use ($editarPerfilController) {
-        return safeCall(fn() => $editarPerfilController->buscarPerfil());
+    // Upload de foto para voluntário
+    ['POST', '/api/perfil/voluntario/foto', function () use ($editarVoluntarioController) {
+        $foto = $_FILES['foto_perfil'] ?? null;
+        return safeCall(fn() => $editarVoluntarioController->uploadFotoPerfil($foto));
+    }],
+
+    // ========== ROTAS DE PERFIL ASILO ==========
+
+    // Buscar perfil completo do asilo
+    ['GET', '/api/perfil/asilo', function () use ($editarAsiloController) {
+        return safeCall(fn() => $editarAsiloController->buscarPerfilAsilo());
+    }],
+
+    // Editar perfil básico do asilo
+    ['PUT', '/api/perfil/asilo/basico', function () use ($editarAsiloController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $editarAsiloController->editarPerfilAsilo($input));
+    }],
+
+    // Editar perfil asilo (campos opcionais/detalhes)
+    ['PUT', '/api/perfil/asilo/detalhes', function () use ($editarAsiloController) {
+        $input = getJsonInput();
+        return safeCall(fn() => $editarAsiloController->editarPerfilAsiloDetalhes($input));
+    }],
+
+    // Upload de foto para asilo
+    ['POST', '/api/perfil/asilo/foto', function () use ($editarAsiloController) {
+        $foto = $_FILES['foto_perfil'] ?? null;
+        return safeCall(fn() => $editarAsiloController->uploadFotoPerfil($foto));
     }],
 
 ];

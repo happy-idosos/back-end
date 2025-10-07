@@ -1,9 +1,24 @@
 <?php
-// Habilita CORS e dependências básicas
+// -------------------------------------------
+// Inicialização e dependências
+// -------------------------------------------
+
+header("Access-Control-Allow-Origin: *"); // permite qualquer origem
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Credentials: true");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+// 1️⃣ Habilita CORS (deve ser o PRIMEIRO require)
 require_once __DIR__ . '/config/cors.php';
+
+// 2️⃣ Conexão com o banco de dados
 require_once __DIR__ . '/config/connection.php';
 
-// Carrega as rotas
+// 3️⃣ Carrega rotas da API
 require_once __DIR__ . '/routes/rotas.php';
 
 // -------------------------------------------
@@ -34,7 +49,7 @@ if (!$response) {
     echo json_encode([
         'erro' => 'Rota não encontrada',
         'uri' => $uri
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -49,3 +64,4 @@ if (is_array($response)) {
 } else {
     echo $response;
 }
+?>

@@ -1,6 +1,7 @@
 <?php
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
-class EditarPerfilController {
+class EditarVoluntarioController {
     private $conn;
 
     public function __construct($conn) {
@@ -8,28 +9,24 @@ class EditarPerfilController {
     }
 
     /**
-     * Edita o perfil básico do voluntário
+     * Edita o perfil básico do voluntário (dados do cadastro)
      */
     public function editarPerfil($input) {
-        // Verifica autenticação
-        $user = AuthMiddleware::requireType('usuario');
-        
-        if (!isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
+        $user = AuthMiddleware::verifyAuth();
+        if (!$user || $user['tipo'] !== 'usuario') {
+            return ['status' => 401, 'message' => 'Não autorizado - Apenas usuários podem acessar'];
         }
 
         $id_usuario = $user['id_usuario'];
         $errors = [];
 
-        // Validações básicas
+        // Validações
         if (isset($input['email']) && !filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Email inválido';
         }
-
         if (isset($input['cpf']) && !$this->validarCPF($input['cpf'])) {
             $errors[] = 'CPF inválido';
         }
-
         if (isset($input['data_nascimento']) && !$this->validarDataNascimento($input['data_nascimento'])) {
             $errors[] = 'Data de nascimento inválida';
         }
@@ -41,12 +38,11 @@ class EditarPerfilController {
         try {
             $this->conn->beginTransaction();
 
-            // Campos permitidos para atualização
+            // Campos do cadastro (UPDATE) - CORRIGIDO com campos reais
             $camposPermitidos = ['cpf', 'nome', 'telefone', 'data_nascimento', 'email'];
             $updates = [];
             $params = [':id_usuario' => $id_usuario];
 
-            // Constrói a query dinamicamente
             foreach ($camposPermitidos as $campo) {
                 if (isset($input[$campo])) {
                     $updates[] = "$campo = :$campo";
@@ -62,7 +58,6 @@ class EditarPerfilController {
 
             $this->conn->commit();
 
-            // Busca dados atualizados
             $usuarioAtualizado = $this->buscarUsuario($id_usuario);
             return [
                 'status' => 200,
@@ -73,7 +68,6 @@ class EditarPerfilController {
         } catch (PDOException $e) {
             $this->conn->rollBack();
             
-            // Verifica se é erro de duplicidade
             if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
                 if (strpos($e->getMessage(), 'cpf') !== false) {
                     return ['status' => 400, 'message' => 'CPF já cadastrado'];
@@ -88,14 +82,12 @@ class EditarPerfilController {
     }
 
     /**
-     * Adiciona ou atualiza campos opcionais do perfil voluntário
+     * Adiciona ou atualiza campos do perfil voluntário (estão na própria tabela usuarios)
      */
     public function editarPerfilVoluntario($input) {
-        // Verifica autenticação
-        $user = AuthMiddleware::requireType('usuario');
-        
-        if (!isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
+        $user = AuthMiddleware::verifyAuth();
+        if (!$user || $user['tipo'] !== 'usuario') {
+            return ['status' => 401, 'message' => 'Não autorizado - Apenas usuários podem acessar'];
         }
 
         $id_usuario = $user['id_usuario'];
@@ -103,17 +95,11 @@ class EditarPerfilController {
         try {
             $this->conn->beginTransaction();
 
-            // Verifica se já existe perfil
-            $stmt = $this->conn->prepare("SELECT id_perfil FROM perfil_voluntario WHERE id_usuario = :id_usuario");
-            $stmt->bindParam(':id_usuario', $id_usuario);
-            $stmt->execute();
-            $perfilExistente = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $camposPermitidos = ['habilidades', 'competencias', 'disponibilidade', 'sobre_voce', 'foto_perfil'];
+            // Campos do perfil voluntário - CORRIGIDO: estão na tabela usuarios
+            $camposPermitidos = ['habilidades', 'disponibilidade', 'sobre_voce', 'foto_perfil'];
             $updates = [];
             $params = [':id_usuario' => $id_usuario];
 
-            // Constrói a query dinamicamente
             foreach ($camposPermitidos as $campo) {
                 if (isset($input[$campo])) {
                     $updates[] = "$campo = :$campo";
@@ -125,30 +111,13 @@ class EditarPerfilController {
                 return ['status' => 400, 'message' => 'Nenhum campo válido para atualização'];
             }
 
-            if ($perfilExistente) {
-                // Update
-                $sql = "UPDATE perfil_voluntario SET " . implode(', ', $updates) . ", atualizado_em = NOW() WHERE id_usuario = :id_usuario";
-            } else {
-                // Insert - inclui o id_usuario
-                $campos = ['id_usuario'];
-                $placeholders = [':id_usuario'];
-                
-                foreach ($camposPermitidos as $campo) {
-                    if (isset($input[$campo])) {
-                        $campos[] = $campo;
-                        $placeholders[] = ":$campo";
-                    }
-                }
-                
-                $sql = "INSERT INTO perfil_voluntario (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $placeholders) . ")";
-            }
-
+            // SEMPRE UPDATE - campos estão na tabela usuarios
+            $sql = "UPDATE usuarios SET " . implode(', ', $updates) . ", atualizado_em = NOW() WHERE id_usuario = :id_usuario";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute($params);
 
             $this->conn->commit();
 
-            // Busca perfil atualizado
             $perfilAtualizado = $this->buscarPerfilVoluntario($id_usuario);
             return [
                 'status' => 200,
@@ -163,13 +132,82 @@ class EditarPerfilController {
     }
 
     /**
-     * Busca perfil completo do usuário
+     * Upload de foto de perfil do voluntário
+     */
+    public function uploadFotoPerfil($foto) {
+        $user = AuthMiddleware::verifyAuth();
+        if (!$user || $user['tipo'] !== 'usuario') {
+            return ['status' => 401, 'message' => 'Não autorizado - Apenas usuários podem acessar'];
+        }
+
+        $id_usuario = $user['id_usuario'];
+
+        if (!$foto || $foto['error'] !== UPLOAD_ERR_OK) {
+            return ['status' => 400, 'message' => 'Nenhuma foto enviada ou erro no upload'];
+        }
+
+        // Validações da imagem
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (!in_array($foto['type'], $allowedTypes)) {
+            return ['status' => 400, 'message' => 'Tipo de arquivo não permitido. Use JPEG, PNG, GIF ou WebP'];
+        }
+
+        if ($foto['size'] > $maxSize) {
+            return ['status' => 400, 'message' => 'Arquivo muito grande. Tamanho máximo: 5MB'];
+        }
+
+        try {
+            // Criar diretório de uploads se não existir
+            $uploadDir = __DIR__ . '/../uploads/voluntarios/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            // Gerar nome único para o arquivo
+            $extensao = pathinfo($foto['name'], PATHINFO_EXTENSION);
+            $nomeArquivo = 'voluntario_' . $id_usuario . '_' . uniqid() . '.' . $extensao;
+            $caminhoCompleto = $uploadDir . $nomeArquivo;
+
+            // Mover arquivo
+            if (!move_uploaded_file($foto['tmp_name'], $caminhoCompleto)) {
+                return ['status' => 500, 'message' => 'Erro ao salvar a imagem'];
+            }
+
+            // Caminho relativo para salvar no banco
+            $caminhoRelativo = '/uploads/voluntarios/' . $nomeArquivo;
+
+            // Atualizar no banco
+            $stmt = $this->conn->prepare("
+                UPDATE usuarios 
+                SET foto_perfil = :foto_perfil, atualizado_em = NOW() 
+                WHERE id_usuario = :id_usuario
+            ");
+            $stmt->bindParam(':foto_perfil', $caminhoRelativo);
+            $stmt->bindParam(':id_usuario', $id_usuario);
+            $stmt->execute();
+
+            return [
+                'status' => 200,
+                'message' => 'Foto de perfil atualizada com sucesso',
+                'data' => [
+                    'foto_perfil' => $caminhoRelativo
+                ]
+            ];
+
+        } catch (PDOException $e) {
+            return ['status' => 500, 'message' => 'Erro ao atualizar foto de perfil: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Busca perfil completo do voluntário
      */
     public function buscarPerfil() {
-        $user = AuthMiddleware::requireType('usuario');
-        
-        if (!isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
+        $user = AuthMiddleware::verifyAuth();
+        if (!$user || $user['tipo'] !== 'usuario') {
+            return ['status' => 401, 'message' => 'Não autorizado - Apenas usuários podem acessar'];
         }
 
         $id_usuario = $user['id_usuario'];
@@ -178,12 +216,12 @@ class EditarPerfilController {
             $usuario = $this->buscarUsuario($id_usuario);
             $perfilVoluntario = $this->buscarPerfilVoluntario($id_usuario);
 
+            // Combinar dados em um único objeto para facilitar no frontend
+            $perfilCompleto = array_merge($usuario, $perfilVoluntario);
+
             return [
                 'status' => 200,
-                'data' => [
-                    'usuario' => $usuario,
-                    'perfil_voluntario' => $perfilVoluntario
-                ]
+                'data' => $perfilCompleto
             ];
 
         } catch (PDOException $e) {
@@ -191,9 +229,6 @@ class EditarPerfilController {
         }
     }
 
-    /**
-     * Busca dados básicos do usuário
-     */
     private function buscarUsuario($id_usuario) {
         $stmt = $this->conn->prepare("
             SELECT id_usuario, cpf, nome, telefone, data_nascimento, email, criado_em, atualizado_em 
@@ -202,27 +237,21 @@ class EditarPerfilController {
         ");
         $stmt->bindParam(':id_usuario', $id_usuario);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
 
-    /**
-     * Busca perfil voluntário
-     */
     private function buscarPerfilVoluntario($id_usuario) {
         $stmt = $this->conn->prepare("
-            SELECT habilidades, competencias, disponibilidade, sobre_voce, foto_perfil, criado_em, atualizado_em 
-            FROM perfil_voluntario 
+            SELECT habilidades, disponibilidade, sobre_voce, foto_perfil
+            FROM usuarios 
             WHERE id_usuario = :id_usuario
         ");
         $stmt->bindParam(':id_usuario', $id_usuario);
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ?: null;
+        return $result ?: [];
     }
 
-    /**
-     * Valida CPF
-     */
     private function validarCPF($cpf) {
         $cpf = preg_replace('/[^0-9]/', '', $cpf);
         
@@ -230,7 +259,6 @@ class EditarPerfilController {
             return false;
         }
 
-        // Cálculo dos dígitos verificadores
         for ($t = 9; $t < 11; $t++) {
             for ($d = 0, $c = 0; $c < $t; $c++) {
                 $d += $cpf[$c] * (($t + 1) - $c);
@@ -244,9 +272,6 @@ class EditarPerfilController {
         return true;
     }
 
-    /**
-     * Valida data de nascimento
-     */
     private function validarDataNascimento($data) {
         $dataObj = DateTime::createFromFormat('Y-m-d', $data);
         $hoje = new DateTime();
@@ -255,7 +280,6 @@ class EditarPerfilController {
             return false;
         }
 
-        // Verifica se a data não é futura e se a pessoa tem pelo menos 16 anos
         $idade = $dataObj->diff($hoje)->y;
         return $idade >= 16 && $idade <= 120;
     }
