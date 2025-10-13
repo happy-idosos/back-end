@@ -1,14 +1,14 @@
 <?php
 
-// Carrega middleware
+
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
-// Carrega todos os controllers automaticamente 
+
 foreach (glob(__DIR__ . '/../controllers/*.php') as $file) {
     require_once $file;
 }
 
-// Garante que $conn (PDO) esteja disponível
+// Conexão com o banco de dados
 if (!isset($conn) && isset($GLOBALS['conn'])) {
     $conn = $GLOBALS['conn'];
 }
@@ -262,23 +262,16 @@ $routes = [
         $id_midia = $_GET['id'] ?? null;
         return safeCall(fn() => $videoController->deletarVideo($user, $id_midia));
     }],
+    // Editar perfil completo (uma única rota para todos os campos)
+['PUT', '/api/perfil/editar', function () use ($editarPerfilController) {
+    $input = getJsonInput();
+    return safeCall(fn() => $editarPerfilController->editarPerfil($input));
+}],
 
-    // Editar perfil básico
-    ['PUT', '/api/perfil/editar', function () use ($editarPerfilController) {
-        $input = getJsonInput();
-        return safeCall(fn() => $editarPerfilController->editarPerfil($input));
-    }],
-
-    // Editar perfil voluntário (campos opcionais)
-    ['PUT', '/api/perfil/voluntario', function () use ($editarPerfilController) {
-        $input = getJsonInput();
-        return safeCall(fn() => $editarPerfilController->editarPerfilVoluntario($input));
-    }],
-
-    // Buscar perfil completo
-    ['GET', '/api/perfil', function () use ($editarPerfilController) {
-        return safeCall(fn() => $editarPerfilController->buscarPerfil());
-    }],
+// Buscar perfil completo
+['GET', '/api/perfil', function () use ($editarPerfilController) {
+    return safeCall(fn() => $editarPerfilController->buscarPerfil());
+}],
 
 ];
 

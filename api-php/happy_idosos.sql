@@ -364,6 +364,21 @@ BEGIN
     END IF;
 END//
 
+-- Para a tabela usuarios (voluntários)
+ALTER TABLE usuarios 
+ADD COLUMN endereco VARCHAR(255) AFTER data_nascimento,
+ADD COLUMN cidade VARCHAR(100) AFTER endereco,
+ADD COLUMN estado VARCHAR(2) AFTER cidade,
+ADD COLUMN cep VARCHAR(9) AFTER estado;
+
+-- Para a tabela asilos
+ALTER TABLE asilos 
+ADD COLUMN responsavel_legal VARCHAR(128) AFTER cnpj,
+ADD COLUMN tipo_instituicao VARCHAR(50) AFTER capacidade,
+ADD COLUMN necessidades_voluntariado VARCHAR(255) AFTER descricao,
+ADD COLUMN site VARCHAR(255) AFTER necessidades_voluntariado,
+ADD COLUMN redes_sociais VARCHAR(500) AFTER site;
+
 DELIMITER ;
 
 -- ============================================

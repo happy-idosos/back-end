@@ -1,263 +1,198 @@
 <?php
+require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../utils/validators.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
-class EditarPerfilController {
+class EditarPerfilController
+{
     private $conn;
 
-    public function __construct($conn) {
-        $this->conn = $conn;
+    public function __construct($db)
+    {
+        $this->conn = $db;
     }
 
-    /**
-     * Edita o perfil básico do voluntário
-     */
-    public function editarPerfil($input) {
+    public function editarPerfil($dados)
+    {
         // Verifica autenticação
-        $user = AuthMiddleware::requireType('usuario');
+        $user = AuthMiddleware::requireAuth();
         
-        if (!isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
+        // Validações básicas para campos obrigatórios
+        if (empty($dados['nome']) || empty($dados['email'])) {
+            return ["status" => 400, "message" => "Nome e e-mail são obrigatórios"];
         }
 
-        $id_usuario = $user['id_usuario'];
-        $errors = [];
-
-        // Validações básicas
-        if (isset($input['email']) && !filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Email inválido';
+        if (!validarNome($dados['nome'])) {
+            return ["status" => 400, "message" => "Nome inválido"];
         }
 
-        if (isset($input['cpf']) && !$this->validarCPF($input['cpf'])) {
-            $errors[] = 'CPF inválido';
+        if (!filter_var($dados['email'], FILTER_VALIDATE_EMAIL)) {
+            return ["status" => 400, "message" => "E-mail inválido"];
         }
 
-        if (isset($input['data_nascimento']) && !$this->validarDataNascimento($input['data_nascimento'])) {
-            $errors[] = 'Data de nascimento inválida';
-        }
-
-        if (!empty($errors)) {
-            return ['status' => 400, 'errors' => $errors];
-        }
-
-        try {
-            $this->conn->beginTransaction();
-
-            // Campos permitidos para atualização
-            $camposPermitidos = ['cpf', 'nome', 'telefone', 'data_nascimento', 'email'];
-            $updates = [];
-            $params = [':id_usuario' => $id_usuario];
-
-            // Constrói a query dinamicamente
-            foreach ($camposPermitidos as $campo) {
-                if (isset($input[$campo])) {
-                    $updates[] = "$campo = :$campo";
-                    $params[":$campo"] = $input[$campo];
-                }
-            }
-
-            if (!empty($updates)) {
-                $sql = "UPDATE usuarios SET " . implode(', ', $updates) . ", atualizado_em = NOW() WHERE id_usuario = :id_usuario";
-                $stmt = $this->conn->prepare($sql);
-                $stmt->execute($params);
-            }
-
-            $this->conn->commit();
-
-            // Busca dados atualizados
-            $usuarioAtualizado = $this->buscarUsuario($id_usuario);
-            return [
-                'status' => 200,
-                'message' => 'Perfil atualizado com sucesso',
-                'data' => $usuarioAtualizado
-            ];
-
-        } catch (PDOException $e) {
-            $this->conn->rollBack();
+        // Verifica se o email já existe para outro usuário
+        if ($user['tipo'] === 'usuario') {
+            $sqlCheck = "SELECT id_usuario FROM usuarios WHERE email = :email AND id_usuario != :id";
+            $idField = 'id_usuario';
+            $table = 'usuarios';
+            $idValue = $user['id_usuario'];
             
-            // Verifica se é erro de duplicidade
-            if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                if (strpos($e->getMessage(), 'cpf') !== false) {
-                    return ['status' => 400, 'message' => 'CPF já cadastrado'];
-                }
-                if (strpos($e->getMessage(), 'email') !== false) {
-                    return ['status' => 400, 'message' => 'Email já cadastrado'];
+            // Todos os campos do usuário em uma única operação
+            $camposPermitidos = [
+                'nome', 'email', 'telefone', 'data_nascimento', 'endereco', 
+                'cidade', 'estado', 'cep', 'cpf', 'habilidades', 
+                'disponibilidade', 'sobre_voce'
+            ];
+            
+            // Valida CPF se fornecido
+            if (!empty($dados['cpf'])) {
+                if (!validarCPF($dados['cpf'])) {
+                    return ["status" => 400, "message" => "CPF inválido"];
                 }
             }
             
-            return ['status' => 500, 'message' => 'Erro ao atualizar perfil: ' . $e->getMessage()];
-        }
-    }
-
-    /**
-     * Adiciona ou atualiza campos opcionais do perfil voluntário
-     */
-    public function editarPerfilVoluntario($input) {
-        // Verifica autenticação
-        $user = AuthMiddleware::requireType('usuario');
-        
-        if (!isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
-        }
-
-        $id_usuario = $user['id_usuario'];
-
-        try {
-            $this->conn->beginTransaction();
-
-            // Verifica se já existe perfil
-            $stmt = $this->conn->prepare("SELECT id_perfil FROM perfil_voluntario WHERE id_usuario = :id_usuario");
-            $stmt->bindParam(':id_usuario', $id_usuario);
-            $stmt->execute();
-            $perfilExistente = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $camposPermitidos = ['habilidades', 'competencias', 'disponibilidade', 'sobre_voce', 'foto_perfil'];
-            $updates = [];
-            $params = [':id_usuario' => $id_usuario];
-
-            // Constrói a query dinamicamente
-            foreach ($camposPermitidos as $campo) {
-                if (isset($input[$campo])) {
-                    $updates[] = "$campo = :$campo";
-                    $params[":$campo"] = $input[$campo];
+        } else {
+            $sqlCheck = "SELECT id_asilo FROM asilos WHERE email = :email AND id_asilo != :id";
+            $idField = 'id_asilo';
+            $table = 'asilos';
+            $idValue = $user['id_asilo'];
+            
+            // Todos os campos do asilo em uma única operação
+            $camposPermitidos = [
+                'nome', 'email', 'telefone', 'endereco', 'cidade', 'estado', 'cep',
+                'cnpj', 'responsavel_legal', 'capacidade', 'tipo_instituicao', 
+                'descricao', 'necessidades_voluntariado', 'site', 'redes_sociais'
+            ];
+            
+            // Valida CNPJ se fornecido
+            if (!empty($dados['cnpj'])) {
+                if (!validarCNPJ($dados['cnpj'])) {
+                    return ["status" => 400, "message" => "CNPJ inválido"];
                 }
             }
+        }
 
-            if (empty($updates)) {
-                return ['status' => 400, 'message' => 'Nenhum campo válido para atualização'];
-            }
+        $stmtCheck = $this->conn->prepare($sqlCheck);
+        $stmtCheck->bindParam(":email", $dados['email']);
+        $stmtCheck->bindParam(":id", $idValue);
+        $stmtCheck->execute();
 
-            if ($perfilExistente) {
-                // Update
-                $sql = "UPDATE perfil_voluntario SET " . implode(', ', $updates) . ", atualizado_em = NOW() WHERE id_usuario = :id_usuario";
-            } else {
-                // Insert - inclui o id_usuario
-                $campos = ['id_usuario'];
-                $placeholders = [':id_usuario'];
-                
-                foreach ($camposPermitidos as $campo) {
-                    if (isset($input[$campo])) {
-                        $campos[] = $campo;
-                        $placeholders[] = ":$campo";
-                    }
+        if ($stmtCheck->fetch(PDO::FETCH_ASSOC)) {
+            return ["status" => 400, "message" => "Este e-mail já está em uso por outro usuário"];
+        }
+
+        // Prepara SQL para atualização
+        $setParts = [];
+        $params = [':id' => $idValue];
+
+        foreach ($camposPermitidos as $campo) {
+            if (isset($dados[$campo])) {
+                // Validações específicas por campo
+                if ($campo === 'nome' && !validarNome($dados[$campo])) {
+                    return ["status" => 400, "message" => "Nome inválido"];
                 }
                 
-                $sql = "INSERT INTO perfil_voluntario (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                if ($campo === 'telefone' && !empty($dados[$campo]) && !validarTelefone($dados[$campo])) {
+                    return ["status" => 400, "message" => "Telefone inválido"];
+                }
+                
+                if ($campo === 'capacidade' && !empty($dados[$campo]) && !is_numeric($dados[$campo])) {
+                    return ["status" => 400, "message" => "Capacidade deve ser um número"];
+                }
+                
+                // Validações de tamanho para campos de texto
+                if ($campo === 'habilidades' && strlen($dados[$campo]) > 64) {
+                    return ["status" => 400, "message" => "Habilidades deve ter no máximo 64 caracteres"];
+                }
+                
+                if ($campo === 'sobre_voce' && strlen($dados[$campo]) > 128) {
+                    return ["status" => 400, "message" => "Biografia deve ter no máximo 128 caracteres"];
+                }
+                
+                if ($campo === 'necessidades_voluntariado' && strlen($dados[$campo]) > 255) {
+                    return ["status" => 400, "message" => "Necessidades de voluntariado deve ter no máximo 255 caracteres"];
+                }
+                
+                $setParts[] = "$campo = :$campo";
+                $params[":$campo"] = $dados[$campo] !== '' ? $dados[$campo] : null;
             }
-
-            $stmt = $this->conn->prepare($sql);
-            $stmt->execute($params);
-
-            $this->conn->commit();
-
-            // Busca perfil atualizado
-            $perfilAtualizado = $this->buscarPerfilVoluntario($id_usuario);
-            return [
-                'status' => 200,
-                'message' => 'Perfil voluntário atualizado com sucesso',
-                'data' => $perfilAtualizado
-            ];
-
-        } catch (PDOException $e) {
-            $this->conn->rollBack();
-            return ['status' => 500, 'message' => 'Erro ao atualizar perfil voluntário: ' . $e->getMessage()];
         }
-    }
 
-    /**
-     * Busca perfil completo do usuário
-     */
-    public function buscarPerfil() {
-        $user = AuthMiddleware::requireType('usuario');
+        if (empty($setParts)) {
+            return ["status" => 400, "message" => "Nenhum dado válido para atualização"];
+        }
+
+        $sql = "UPDATE $table SET " . implode(', ', $setParts) . ", atualizado_em = CURRENT_TIMESTAMP WHERE $idField = :id";
+        $stmt = $this->conn->prepare($sql);
         
-        if (!isset($user['id_usuario'])) {
-            return ['status' => 401, 'message' => 'Não autorizado - ID de usuário não encontrado'];
-        }
-
-        $id_usuario = $user['id_usuario'];
-
-        try {
-            $usuario = $this->buscarUsuario($id_usuario);
-            $perfilVoluntario = $this->buscarPerfilVoluntario($id_usuario);
-
-            return [
-                'status' => 200,
-                'data' => [
-                    'usuario' => $usuario,
-                    'perfil_voluntario' => $perfilVoluntario
-                ]
-            ];
-
-        } catch (PDOException $e) {
-            return ['status' => 500, 'message' => 'Erro ao buscar perfil: ' . $e->getMessage()];
+        if ($stmt->execute($params)) {
+            return ["status" => 200, "message" => "Perfil atualizado com sucesso"];
+        } else {
+            error_log("Erro ao atualizar perfil: " . print_r($stmt->errorInfo(), true));
+            return ["status" => 500, "message" => "Erro ao atualizar perfil"];
         }
     }
 
-    /**
-     * Busca dados básicos do usuário
-     */
-    private function buscarUsuario($id_usuario) {
-        $stmt = $this->conn->prepare("
-            SELECT id_usuario, cpf, nome, telefone, data_nascimento, email, criado_em, atualizado_em 
-            FROM usuarios 
-            WHERE id_usuario = :id_usuario
-        ");
-        $stmt->bindParam(':id_usuario', $id_usuario);
+    public function buscarPerfil()
+    {
+        $user = AuthMiddleware::requireAuth();
+
+        if ($user['tipo'] === 'usuario') {
+            $sql = "SELECT 
+                id_usuario as id,
+                cpf,
+                nome, 
+                telefone, 
+                data_nascimento, 
+                email, 
+                endereco, 
+                cidade, 
+                estado, 
+                cep,
+                habilidades,
+                disponibilidade,
+                sobre_voce,
+                foto_perfil
+            FROM usuarios WHERE id_usuario = :id";
+            $id = $user['id_usuario'];
+        } else {
+            $sql = "SELECT 
+                id_asilo as id,
+                cnpj,
+                nome, 
+                telefone, 
+                email, 
+                endereco, 
+                cidade, 
+                estado, 
+                cep,
+                responsavel_legal,
+                capacidade,
+                tipo_instituicao,
+                descricao,
+                necessidades_voluntariado,
+                site,
+                redes_sociais,
+                logo as foto_perfil
+            FROM asilos WHERE id_asilo = :id";
+            $id = $user['id_asilo'];
+        }
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":id", $id);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
 
-    /**
-     * Busca perfil voluntário
-     */
-    private function buscarPerfilVoluntario($id_usuario) {
-        $stmt = $this->conn->prepare("
-            SELECT habilidades, competencias, disponibilidade, sobre_voce, foto_perfil, criado_em, atualizado_em 
-            FROM perfil_voluntario 
-            WHERE id_usuario = :id_usuario
-        ");
-        $stmt->bindParam(':id_usuario', $id_usuario);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ?: null;
-    }
+        $perfil = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    /**
-     * Valida CPF
-     */
-    private function validarCPF($cpf) {
-        $cpf = preg_replace('/[^0-9]/', '', $cpf);
-        
-        if (strlen($cpf) != 11 || preg_match('/(\d)\1{10}/', $cpf)) {
-            return false;
+        if ($perfil) {
+            return [
+                "status" => 200,
+                "tipo" => $user['tipo'],
+                "perfil" => $perfil
+            ];
+        } else {
+            return ["status" => 404, "message" => "Perfil não encontrado"];
         }
-
-        // Cálculo dos dígitos verificadores
-        for ($t = 9; $t < 11; $t++) {
-            for ($d = 0, $c = 0; $c < $t; $c++) {
-                $d += $cpf[$c] * (($t + 1) - $c);
-            }
-            $d = ((10 * $d) % 11) % 10;
-            if ($cpf[$c] != $d) {
-                return false;
-            }
-        }
-        
-        return true;
-    }
-
-    /**
-     * Valida data de nascimento
-     */
-    private function validarDataNascimento($data) {
-        $dataObj = DateTime::createFromFormat('Y-m-d', $data);
-        $hoje = new DateTime();
-        
-        if (!$dataObj || $dataObj->format('Y-m-d') !== $data) {
-            return false;
-        }
-
-        // Verifica se a data não é futura e se a pessoa tem pelo menos 16 anos
-        $idade = $dataObj->diff($hoje)->y;
-        return $idade >= 16 && $idade <= 120;
     }
 }
 ?>
