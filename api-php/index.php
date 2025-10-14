@@ -1,12 +1,27 @@
 <?php
+// Aumentar limites para upload de vídeos grandes
+ini_set('upload_max_filesize', '200M');
+ini_set('post_max_size', '200M');
+ini_set('max_execution_time', '300');
+ini_set('max_input_time', '300');
+ini_set('memory_limit', '256M');
 
+// Headers CORS - MAIS COMPLETOS
 header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
 header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Max-Age: 86400");
 
-// Habilita CORS e dependências básicas
+// Responde imediatamente para requisições OPTIONS (Preflight)
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Seu código atual continua abaixo...
 require_once __DIR__ . '/config/cors.php';
+
 require_once __DIR__ . '/config/connection.php';
 
 // Carrega as rotas
