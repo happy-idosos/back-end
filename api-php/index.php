@@ -1,15 +1,15 @@
 <?php
+// REMOVA estas linhas do index.php - já estão no cors.php
+// header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+// header("Access-Control-Allow-Credentials: true");
+// header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+// header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-
-// Habilita CORS e dependências básicas
+// Habilita CORS PRIMEIRO - antes de qualquer coisa
 require_once __DIR__ . '/config/cors.php';
-require_once __DIR__ . '/config/connection.php';
 
-// Carrega as rotas
+// Depois as outras dependências
+require_once __DIR__ . '/config/connection.php';
 require_once __DIR__ . '/routes/rotas.php';
 
 // -------------------------------------------
