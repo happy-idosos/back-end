@@ -16,40 +16,23 @@ class VideoController
         $this->maxFileSize = 100 * 1024 * 1024; // 100MB
         $this->allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
 
-        // Cria diretório se não existir
         if (!is_dir($this->uploadDir)) {
             mkdir($this->uploadDir, 0777, true);
         }
     }
 
-    /**
-     * Upload de vídeo (requer autenticação)
-     */
     public function uploadVideo($user, $files, $data)
     {
-    // Headers CORS
-    header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
-    header("Access-Control-Allow-Credentials: true");
-    
-    // ✅ CORREÇÃO: Mude $post para $data
-    error_log("🎯 Upload de vídeo iniciado para usuário: " . print_r($user, true));
-    error_log("🎯 Files recebidos: " . print_r($files, true));
-    error_log("🎯 POST data: " . print_r($data, true)); // ← CORRIGIDO
+        
+        error_log("🎯 Upload de vídeo iniciado para usuário: " . print_r($user, true));
+        error_log("🎯 Files recebidos: " . print_r($files, true));
+        error_log("🎯 POST data: " . print_r($data, true));
 
-    // DEBUG: Log do que está chegando
-    error_log("DEBUG - Files recebidos: " . print_r($files, true));
-    error_log("DEBUG - Data recebida: " . print_r($data, true)); // ← CORRIGIDO
-    error_log("DEBUG - User: " . print_r($user, true));
-
-    // Verifica se há arquivo enviado
-    if (!isset($files['video']) || $files['video']['error'] !== UPLOAD_ERR_OK) {
-        $errorMsg = $this->handleUploadError($files['video']['error'] ?? null);
-        error_log("DEBUG - Erro no upload: " . print_r($errorMsg, true));
-        return $errorMsg;
-    }
         // Verifica se há arquivo enviado
         if (!isset($files['video']) || $files['video']['error'] !== UPLOAD_ERR_OK) {
-            return $this->handleUploadError($files['video']['error'] ?? null);
+            $errorMsg = $this->handleUploadError($files['video']['error'] ?? null);
+            error_log("DEBUG - Erro no upload: " . print_r($errorMsg, true));
+            return $errorMsg;
         }
 
         $video = $files['video'];
@@ -142,7 +125,6 @@ class VideoController
                 ]
             ];
         } catch (Exception $e) {
-            // Remove arquivo se falhar ao salvar no banco
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
@@ -155,9 +137,6 @@ class VideoController
         }
     }
 
-    /**
-     * Listagem do feed de vídeos (público)
-     */
     public function listarVideos()
     {
         try {
@@ -184,10 +163,9 @@ class VideoController
             $stmt = $this->conn->query($sql);
             $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Formata tamanho em MB
             foreach ($videos as &$video) {
                 $video['tamanho_mb'] = round($video['tamanho_bytes'] / (1024 * 1024), 2);
-                unset($video['tamanho_bytes']); // Remove o campo original para evitar confusão
+                unset($video['tamanho_bytes']);
             }
 
             return [
@@ -204,13 +182,9 @@ class VideoController
         }
     }
 
-    /**
-     * Deletar vídeo (apenas o autor)
-     */
     public function deletarVideo($user, $id_midia)
     {
         try {
-            // Busca o vídeo
             $sql = "SELECT * FROM midias WHERE id_midia = :id_midia";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':id_midia', $id_midia);
@@ -221,7 +195,6 @@ class VideoController
                 return ['status' => 404, 'message' => 'Vídeo não encontrado'];
             }
 
-            // Verifica se é o autor
             $isAutor = false;
             if ($user['tipo'] === 'usuario' && $video['id_usuario'] == $user['id']) {
                 $isAutor = true;
@@ -233,13 +206,11 @@ class VideoController
                 return ['status' => 403, 'message' => 'Você não tem permissão para deletar este vídeo'];
             }
 
-            // Deleta do banco
             $sqlDelete = "DELETE FROM midias WHERE id_midia = :id_midia";
             $stmtDelete = $this->conn->prepare($sqlDelete);
             $stmtDelete->bindParam(':id_midia', $id_midia);
             $stmtDelete->execute();
 
-            // Deleta arquivo físico
             $filePath = __DIR__ . '/../' . $video['url'];
             if (file_exists($filePath)) {
                 unlink($filePath);
@@ -255,9 +226,6 @@ class VideoController
         }
     }
 
-    /**
-     * Trata erros de upload
-     */
     private function handleUploadError($errorCode)
     {
         $errors = [
@@ -278,9 +246,6 @@ class VideoController
         ];
     }
 
-    /**
-     * Buscar vídeo por ID
-     */
     public function buscarVideoPorId($id_midia)
     {
         try {
@@ -312,7 +277,6 @@ class VideoController
                 return ['status' => 404, 'message' => 'Vídeo não encontrado'];
             }
 
-            // Formata tamanho em MB
             $video['tamanho_mb'] = round($video['tamanho_bytes'] / (1024 * 1024), 2);
             unset($video['tamanho_bytes']);
 

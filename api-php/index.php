@@ -1,54 +1,46 @@
 <?php
+// ========================================
+// CORS HEADERS - MUST BE FIRST!
+// ========================================
 header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Max-Age: 86400");
 
-// Aumentar limites para upload de vídeos grandes
+// Handle OPTIONS preflight immediately
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// ========================================
+// UPLOAD CONFIGURATION
+// ========================================
 ini_set('upload_max_filesize', '200M');
 ini_set('post_max_size', '200M');
 ini_set('max_execution_time', '300');
 ini_set('max_input_time', '300');
 ini_set('memory_limit', '256M');
 
-// Responde imediatamente para requisições OPTIONS (Preflight)
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
-// Seu código atual continua abaixo...
-require_once __DIR__ . '/config/cors.php';
-
+// ========================================
+// LOAD APPLICATION FILES
+// ========================================
 require_once __DIR__ . '/config/connection.php';
-
-// Carrega as rotas
 require_once __DIR__ . '/routes/rotas.php';
 
-// -------------------------------------------
-// NORMALIZAÇÃO DA URI (com ou sem index.php)
-// -------------------------------------------
+// ========================================
+// ROUTE HANDLING
+// ========================================
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-
-// Remove caminho base do projeto
 $uri = preg_replace('#^/back-end/api-php#', '', $uri);
-
-// Remove /index.php (se existir)
 $uri = preg_replace('#^/index\.php#', '', $uri);
-
-// Remove barras finais duplicadas
 $uri = rtrim($uri, '/');
-
-// Identifica o método HTTP
 $method = $_SERVER['REQUEST_METHOD'];
 
-// -------------------------------------------
-// DESPACHA A ROTA
-// -------------------------------------------
+// Dispatch route
 $response = route($method, $uri);
 
-// Caso a rota não exista
 if (!$response) {
     http_response_code(404);
     echo json_encode([
@@ -58,12 +50,11 @@ if (!$response) {
     exit;
 }
 
-// -------------------------------------------
-// RETORNA RESPOSTA
-// -------------------------------------------
+// ========================================
+// SEND RESPONSE
+// ========================================
 header('Content-Type: application/json; charset=utf-8');
 
-// Se o controller retornar array → converte em JSON
 if (is_array($response)) {
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } else {
