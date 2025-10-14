@@ -13,8 +13,8 @@ try {
 
 $host = $_ENV['DB_HOST'] ?? 'localhost';
 $dbname = $_ENV['DB_NAME'] ?? 'happy_idosos';
-$username = $_ENV['DB_USER'] ?? 'root';
-$password = $_ENV['DB_PASS'] ?? '';
+$username = $_ENV['DB_USER'] ?? 'happyidosos_user';
+$password = $_ENV['DB_PASS'] ?? 'senha_segura_123';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
