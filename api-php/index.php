@@ -11,6 +11,7 @@ require_once __DIR__ . '/config/cors.php';
 // Depois as outras dependências
 require_once __DIR__ . '/config/connection.php';
 require_once __DIR__ . '/routes/rotas.php';
+require_once __DIR__ . '/config/php-upload-config.php';
 
 // -------------------------------------------
 // NORMALIZAÇÃO DA URI (com ou sem index.php)
