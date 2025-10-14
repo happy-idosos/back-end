@@ -1,17 +1,16 @@
 <?php
+header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Max-Age: 86400");
+
 // Aumentar limites para upload de vídeos grandes
 ini_set('upload_max_filesize', '200M');
 ini_set('post_max_size', '200M');
 ini_set('max_execution_time', '300');
 ini_set('max_input_time', '300');
 ini_set('memory_limit', '256M');
-
-// Headers CORS - MAIS COMPLETOS
-header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Max-Age: 86400");
 
 // Responde imediatamente para requisições OPTIONS (Preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {

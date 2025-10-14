@@ -27,10 +27,18 @@ class VideoController
      */
     public function uploadVideo($user, $files, $data)
     {
+    // Headers CORS
+    header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+    header("Access-Control-Allow-Credentials: true");
+    
+    // ✅ CORREÇÃO: Mude $post para $data
+    error_log("🎯 Upload de vídeo iniciado para usuário: " . print_r($user, true));
+    error_log("🎯 Files recebidos: " . print_r($files, true));
+    error_log("🎯 POST data: " . print_r($data, true)); // ← CORRIGIDO
 
-            // DEBUG: Log do que está chegando
+    // DEBUG: Log do que está chegando
     error_log("DEBUG - Files recebidos: " . print_r($files, true));
-    error_log("DEBUG - Data recebida: " . print_r($data, true));
+    error_log("DEBUG - Data recebida: " . print_r($data, true)); // ← CORRIGIDO
     error_log("DEBUG - User: " . print_r($user, true));
 
     // Verifica se há arquivo enviado

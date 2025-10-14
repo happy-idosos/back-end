@@ -1,5 +1,5 @@
 <?php
-// config/cors.php - VERSÃO CORRIGIDA
+// config/cors.php - VERSÃO SUPER PERMISSIVA PARA DEBUG
 
 $allowedOrigins = [
     'https://www.happyidosos.com.br',
@@ -10,21 +10,20 @@ $allowedOrigins = [
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-if (in_array($origin, $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    // Para produção, permite apenas o domínio principal
-    header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
-}
-
+// SEMPRE permite o domínio principal, mesmo sem HTTP_ORIGIN
+header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
 header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token");
-header("Access-Control-Expose-Headers: Authorization");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, Access-Control-Allow-Headers");
+header("Access-Control-Expose-Headers: Authorization, Content-Length");
 header("Access-Control-Max-Age: 86400");
+
+// Log para debug (remove depois)
+error_log("🎯 CORS Headers enviados para: " . $origin);
 
 // Responde imediatamente para requisições OPTIONS (Preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    error_log("🎯 Preflight OPTIONS recebido");
     http_response_code(200);
     exit();
 }
