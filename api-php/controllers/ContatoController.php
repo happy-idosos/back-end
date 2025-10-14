@@ -23,7 +23,7 @@ class ContatoController
     {
         $this->conn = $db;
 
-        $this->uploadDir = __DIR__ . '/../uploads-contato/';
+        $this->uploadDir = __DIR__ . '/../uploads/contato';
         
         // Cria a pasta se não existir
         if (!file_exists($this->uploadDir)) {
@@ -39,8 +39,8 @@ class ContatoController
         // Configura SMTP com fallback
         $this->smtpHost = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $this->smtpPort = getenv('SMTP_PORT') ?: 587;
-        $this->smtpUser = getenv('SMTP_USERNAME') ?: 'pedromedeirosetec02@gmail.com';
-        $this->smtpPass = getenv('SMTP_PASSWORD') ?: 'qpwj ekmy jsia afnk';
+        $this->smtpUser = getenv('SMTP_USERNAME') ?: 'happyidosos@gmail.com';
+        $this->smtpPass = getenv('SMTP_PASSWORD') ?: 'HappyIdosos123';
         $this->smtpFrom = getenv('SMTP_FROM_EMAIL') ?: $this->smtpUser;
         $this->smtpFromName = getenv('SMTP_FROM_NAME') ?: 'Happy Idosos';
     }

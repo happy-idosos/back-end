@@ -261,10 +261,10 @@ $routes = [
         $id_midia = $_GET['id'] ?? null;
         return safeCall(fn() => $videoController->deletarVideo($user, $id_midia));
     }],
-    // Editar perfil completo (uma única rota para todos os campos)
+    // Editar perfil (usuários e asilos)
 ['PUT', '/api/perfil/editar', function () use ($editarPerfilController) {
     $input = getJsonInput();
-    return safeCall(fn() => $editarPerfilController->editarPerfil($input));
+    return safeCall(fn() => $editarPerfilController->editarPerfil($input, $_FILES));
 }],
 
 // Buscar perfil completo

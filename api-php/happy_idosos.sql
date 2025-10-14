@@ -18,6 +18,12 @@ CREATE TABLE usuarios (
     email VARCHAR(128) UNIQUE NOT NULL,
     senha VARCHAR(255) NOT NULL,
     
+    -- Campos de endereço (adicionados para edição de perfil)
+    endereco VARCHAR(255),
+    cidade VARCHAR(100),
+    estado VARCHAR(2),
+    cep VARCHAR(9),
+    
     -- Campos de perfil do voluntário
     habilidades TEXT COMMENT 'Habilidades e competências do voluntário',
     disponibilidade TEXT COMMENT 'Disponibilidade de horários',
@@ -43,19 +49,28 @@ CREATE TABLE asilos (
     id_asilo INT AUTO_INCREMENT PRIMARY KEY,
     cnpj VARCHAR(14) UNIQUE NOT NULL,
     nome VARCHAR(128) NOT NULL,
+    
+    -- Campos de contato
+    telefone VARCHAR(15),
+    email VARCHAR(128) UNIQUE NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    
+    -- Campos de endereço
     endereco VARCHAR(255),
     cidade VARCHAR(100),
     estado VARCHAR(2),
     cep VARCHAR(9),
     latitude DECIMAL(10, 7),
     longitude DECIMAL(10, 7),
-    telefone VARCHAR(15),
-    email VARCHAR(128) UNIQUE NOT NULL,
-    senha VARCHAR(255) NOT NULL,
     
-    -- Campos adicionais
-    descricao TEXT COMMENT 'Descrição do asilo',
+    -- Campos institucionais (adicionados para edição de perfil)
+    responsavel_legal VARCHAR(128),
     capacidade INT COMMENT 'Capacidade de idosos',
+    tipo_instituicao VARCHAR(50),
+    descricao TEXT COMMENT 'Descrição do asilo',
+    necessidades_voluntariado VARCHAR(255),
+    site VARCHAR(255),
+    redes_sociais VARCHAR(500),
     logo VARCHAR(500) COMMENT 'URL do logo do asilo',
     
     -- Campos de auditoria
@@ -287,12 +302,12 @@ CREATE TABLE notificacoes (
 -- ============================================
 
 -- Usuário de teste
-INSERT INTO usuarios (cpf, nome, telefone, data_nascimento, email, senha, habilidades, disponibilidade, sobre_voce) VALUES
-('12345678901', 'João Silva', '11987654321', '1990-05-15', 'joao@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Música, Leitura, Artesanato', 'Sábados e Domingos pela manhã', 'Sou voluntário há 3 anos e adoro trabalhar com idosos.');
+INSERT INTO usuarios (cpf, nome, telefone, data_nascimento, email, senha, habilidades, disponibilidade, sobre_voce, endereco, cidade, estado, cep) VALUES
+('12345678901', 'João Silva', '11987654321', '1990-05-15', 'joao@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Música, Leitura, Artesanato', 'Sábados e Domingos pela manhã', 'Sou voluntário há 3 anos e adoro trabalhar com idosos.', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234-567');
 
 -- Asilo de teste
-INSERT INTO asilos (cnpj, nome, endereco, cidade, estado, cep, latitude, longitude, telefone, email, senha, descricao, capacidade) VALUES
-('12345678000190', 'Lar dos Idosos Felizes', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234-567', -23.550520, -46.633308, '1133334444', 'contato@larfeliz.com.br', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Asilo dedicado ao cuidado e bem-estar de idosos', 50);
+INSERT INTO asilos (cnpj, nome, endereco, cidade, estado, cep, latitude, longitude, telefone, email, senha, descricao, capacidade, responsavel_legal, tipo_instituicao, necessidades_voluntariado, site, redes_sociais) VALUES
+('12345678000190', 'Lar dos Idosos Felizes', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234-567', -23.550520, -46.633308, '1133334444', 'contato@larfeliz.com.br', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Asilo dedicado ao cuidado e bem-estar de idosos', 50, 'Maria Souza', 'Filantrópica', 'Atividades recreativas e acompanhamento médico', 'https://www.larfeliz.com.br', 'instagram.com/larfeliz, facebook.com/larfeliz');
 
 -- Evento de teste
 INSERT INTO eventos (titulo, descricao, data_evento, data_fim, local, vagas, id_asilo) VALUES
@@ -363,21 +378,6 @@ BEGIN
         WHERE id_evento = NEW.id_evento;
     END IF;
 END//
-
--- Para a tabela usuarios (voluntários)
-ALTER TABLE usuarios 
-ADD COLUMN endereco VARCHAR(255) AFTER data_nascimento,
-ADD COLUMN cidade VARCHAR(100) AFTER endereco,
-ADD COLUMN estado VARCHAR(2) AFTER cidade,
-ADD COLUMN cep VARCHAR(9) AFTER estado;
-
--- Para a tabela asilos
-ALTER TABLE asilos 
-ADD COLUMN responsavel_legal VARCHAR(128) AFTER cnpj,
-ADD COLUMN tipo_instituicao VARCHAR(50) AFTER capacidade,
-ADD COLUMN necessidades_voluntariado VARCHAR(255) AFTER descricao,
-ADD COLUMN site VARCHAR(255) AFTER necessidades_voluntariado,
-ADD COLUMN redes_sociais VARCHAR(500) AFTER site;
 
 DELIMITER ;
 
