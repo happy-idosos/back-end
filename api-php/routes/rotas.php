@@ -272,6 +272,16 @@ $routes = [
     return safeCall(fn() => $editarPerfilController->buscarPerfil());
 }],
 
+// Rota específica para upload de foto (POST)
+['POST', '/api/perfil/foto', function () use ($editarPerfilController) {
+    return safeCall(fn() => $editarPerfilController->atualizarFoto($_FILES));
+}],
+
+// Rota alternativa para upload de foto (PUT)
+['PUT', '/api/perfil/foto', function () use ($editarPerfilController) {
+    return safeCall(fn() => $editarPerfilController->atualizarFoto($_FILES));
+}],
+
 // Rota de debug do token e autenticação
 ['GET', '/api/debug/auth', function () {
     $headers = getallheaders();

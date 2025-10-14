@@ -1,11 +1,9 @@
 <?php
-// filepath: api-php/controllers/EsqueceuSenhaController.php
+require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-
-require_once __DIR__ . '/../config/connection.php';
-require_once __DIR__ . '/../vendor/autoload.php';
 
 class EsqueceuSenhaController
 {
@@ -16,20 +14,32 @@ class EsqueceuSenhaController
     private $smtpPass;
     private $smtpFrom;
     private $smtpFromName;
+    private $smtpSecure;
 
     public function __construct(PDO $db)
     {
         $this->conn = $db;
+        $this->carregarConfigSMTP();
+    }
 
-        // Carrega variáveis do ambiente
-        $this->smtpHost = getenv('SMTP_HOST') ?: ($_ENV['SMTP_HOST'] ?? '');
-        $this->smtpPort = getenv('SMTP_PORT') ?: ($_ENV['SMTP_PORT'] ?? 587);
-        $this->smtpUser = getenv('SMTP_USERNAME') ?: ($_ENV['SMTP_USERNAME'] ?? '');
-        $this->smtpPass = getenv('SMTP_PASSWORD') ?: ($_ENV['SMTP_PASSWORD'] ?? '');
-        $this->smtpFrom = getenv('SMTP_FROM_EMAIL') ?: ($_ENV['SMTP_FROM_EMAIL'] ?? '');
-        $this->smtpFromName = getenv('SMTP_FROM_NAME') ?: ($_ENV['SMTP_FROM_NAME'] ?? 'Happy Idosos');
+    private function carregarConfigSMTP()
+    {
+        // Carrega .env se existir
+        if (file_exists(__DIR__ . '/../.env')) {
+            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+            $dotenv->load();
+        }
 
-        if (!$this->smtpHost || !$this->smtpUser || !$this->smtpPass || !$this->smtpFrom) {
+        // Configurações SMTP do .env
+        $this->smtpHost = $_ENV['SMTP_HOST'] ?? getenv('SMTP_HOST') ?? 'smtp.gmail.com';
+        $this->smtpPort = $_ENV['SMTP_PORT'] ?? getenv('SMTP_PORT') ?? 587;
+        $this->smtpUser = $_ENV['SMTP_USERNAME'] ?? getenv('SMTP_USERNAME') ?? 'happyidosos@gmail.com';
+        $this->smtpPass = $_ENV['SMTP_PASSWORD'] ?? getenv('SMTP_PASSWORD') ?? '';
+        $this->smtpFrom = $_ENV['SMTP_FROM_EMAIL'] ?? getenv('SMTP_FROM_EMAIL') ?? $this->smtpUser;
+        $this->smtpFromName = $_ENV['SMTP_FROM_NAME'] ?? getenv('SMTP_FROM_NAME') ?? 'Happy Idosos';
+        $this->smtpSecure = $_ENV['SMTP_SECURE'] ?? getenv('SMTP_SECURE') ?? 'tls';
+
+        if (!$this->smtpHost || !$this->smtpUser || !$this->smtpPass) {
             throw new Exception("Variáveis SMTP não definidas no ambiente.");
         }
     }

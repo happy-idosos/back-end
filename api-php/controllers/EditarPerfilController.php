@@ -6,11 +6,12 @@ require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 class EditarPerfilController
 {
     private $conn;
-    private $uploadDir = __DIR__ . '/../uploads/perfis/';
+    private $uploadDir;
 
     public function __construct($db)
     {
         $this->conn = $db;
+        $this->uploadDir = __DIR__ . '/../uploads/perfis/';
 
         // Cria diretório de uploads se não existir
         if (!file_exists($this->uploadDir)) {
@@ -22,9 +23,10 @@ class EditarPerfilController
     {
         try {
             $user = AuthMiddleware::requireAuth();
-            error_log(" DEBUG - Usuário autenticado: " . print_r($user, true));
-            error_log(" DEBUG - Dados recebidos: " . print_r($dados, true));
-            error_log(" DEBUG - Arquivos recebidos: " . print_r($arquivos, true));
+
+            error_log("🔐 DEBUG - Usuário autenticado: " . print_r($user, true));
+            error_log("📝 DEBUG - Dados recebidos: " . print_r($dados, true));
+            error_log("📁 DEBUG - Arquivos recebidos: " . print_r($arquivos, true));
 
             // Processa upload de foto se existir
             $fotoNome = null;
@@ -104,6 +106,13 @@ class EditarPerfilController
                 }
             }
 
+            error_log("🔍 DEBUG - Tipo: {$user['tipo']}, ID: {$idValue}, Tabela: {$table}");
+
+            // Verifica se o ID foi encontrado
+            if (!$idValue) {
+                return ["status" => 401, "message" => "Token inválido - ID não encontrado"];
+            }
+
             // Verifica se o email já existe para outro usuário
             $stmtCheck = $this->conn->prepare($sqlCheck);
             $stmtCheck->bindParam(":email", $dados['email']);
@@ -121,7 +130,6 @@ class EditarPerfilController
             $setParts = [];
             $params = [':id' => $idValue];
 
-            // Adiciona campos normais
             foreach ($camposPermitidos as $campo) {
                 if (isset($dados[$campo])) {
                     // Validações específicas
@@ -157,19 +165,32 @@ class EditarPerfilController
             }
 
             $sql = "UPDATE $table SET " . implode(', ', $setParts) . ", atualizado_em = CURRENT_TIMESTAMP WHERE $idField = :id";
-            error_log(" DEBUG - SQL: " . $sql);
+            error_log("📝 DEBUG - SQL: " . $sql);
 
             $stmt = $this->conn->prepare($sql);
 
             if ($stmt->execute($params)) {
                 $rowCount = $stmt->rowCount();
-                return ["status" => 200, "message" => "Perfil atualizado com sucesso", "rows_affected" => $rowCount, "foto" => $fotoNome];
+                error_log("✅ DEBUG - Perfil atualizado com sucesso. Linhas afetadas: " . $rowCount);
+
+                $response = [
+                    "status" => 200,
+                    "message" => "Perfil atualizado com sucesso",
+                    "rows_affected" => $rowCount
+                ];
+
+                if ($fotoNome) {
+                    $response["foto"] = $fotoNome;
+                }
+
+                return $response;
             } else {
                 $errorInfo = $stmt->errorInfo();
+                error_log("❌ DEBUG - Erro SQL: " . print_r($errorInfo, true));
                 return ["status" => 500, "message" => "Erro ao atualizar perfil", "error" => $errorInfo[2]];
             }
         } catch (Exception $e) {
-            error_log(" DEBUG - Exceção: " . $e->getMessage());
+            error_log("💥 DEBUG - Exceção: " . $e->getMessage());
             return ["status" => 500, "message" => "Erro interno: " . $e->getMessage()];
         }
     }
@@ -182,12 +203,12 @@ class EditarPerfilController
             $tamanhoMaximo = 5 * 1024 * 1024; // 5MB
 
             if ($arquivo['error'] !== UPLOAD_ERR_OK) {
-                error_log(" DEBUG - Erro no upload: " . $arquivo['error']);
+                error_log("❌ DEBUG - Erro no upload: " . $arquivo['error']);
                 return null;
             }
 
             if ($arquivo['size'] > $tamanhoMaximo) {
-                error_log(" DEBUG - Arquivo muito grande: " . $arquivo['size']);
+                error_log("❌ DEBUG - Arquivo muito grande: " . $arquivo['size']);
                 return null;
             }
 
@@ -196,7 +217,7 @@ class EditarPerfilController
             finfo_close($finfo);
 
             if (!in_array($mimeType, $tiposPermitidos)) {
-                error_log(" DEBUG - Tipo de arquivo não permitido: " . $mimeType);
+                error_log("❌ DEBUG - Tipo de arquivo não permitido: " . $mimeType);
                 return null;
             }
 
@@ -207,14 +228,14 @@ class EditarPerfilController
 
             // Move o arquivo
             if (move_uploaded_file($arquivo['tmp_name'], $caminhoCompleto)) {
-                error_log(" DEBUG - Upload realizado: " . $nomeArquivo);
+                error_log("✅ DEBUG - Upload realizado: " . $nomeArquivo);
                 return $nomeArquivo;
             } else {
-                error_log(" DEBUG - Erro ao mover arquivo");
+                error_log("❌ DEBUG - Erro ao mover arquivo");
                 return null;
             }
         } catch (Exception $e) {
-            error_log(" DEBUG - Exceção no upload: " . $e->getMessage());
+            error_log("💥 DEBUG - Exceção no upload: " . $e->getMessage());
             return null;
         }
     }
@@ -287,57 +308,100 @@ class EditarPerfilController
                 return ["status" => 404, "message" => "Perfil não encontrado"];
             }
         } catch (Exception $e) {
-            error_log(" DEBUG - Exceção ao buscar perfil: " . $e->getMessage());
+            error_log("💥 DEBUG - Exceção ao buscar perfil: " . $e->getMessage());
             return ["status" => 500, "message" => "Erro interno: " . $e->getMessage()];
         }
     }
 
-    // Método específico apenas para trocar foto
-    public function atualizarFoto($arquivos)
-    {
-        try {
-            $user = AuthMiddleware::requireAuth();
+    // Método completo e corrigido para upload de foto
+// No EditarPerfilController - método atualizarFoto CORRIGIDO
+public function atualizarFoto($arquivos)
+{
+    try {
+        $user = AuthMiddleware::requireAuth();
+        
+        error_log("📸 === INÍCIO UPLOAD FOTO ===");
+        error_log("📸 DEBUG - Usuário: " . print_r($user, true));
+        error_log("📸 DEBUG - Arquivos recebidos: " . print_r($arquivos, true));
+        error_log("📸 DEBUG - _FILES global: " . print_r($_FILES, true));
 
-            if (empty($arquivos['foto_perfil'])) {
-                return ["status" => 400, "message" => "Nenhuma foto enviada"];
-            }
-
-            $fotoNome = $this->processarUploadFoto($arquivos['foto_perfil']);
-            if (!$fotoNome) {
-                return ["status" => 400, "message" => "Erro no upload da foto"];
-            }
-
-            // Determina tabela e campo da foto
-            if ($user['tipo'] === 'usuario') {
-                $table = 'usuarios';
-                $idField = 'id_usuario';
-                $campoFoto = 'foto_perfil';
-                $idValue = $user['id_usuario'] ?? $user['id'] ?? null;
-            } else {
-                $table = 'asilos';
-                $idField = 'id_asilo';
-                $campoFoto = 'logo';
-                $idValue = $user['id_asilo'] ?? $user['id'] ?? null;
-            }
-
-            $sql = "UPDATE $table SET $campoFoto = :foto, atualizado_em = CURRENT_TIMESTAMP WHERE $idField = :id";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(":foto", $fotoNome);
-            $stmt->bindParam(":id", $idValue);
-
-            if ($stmt->execute()) {
-                return [
-                    "status" => 200,
-                    "message" => "Foto atualizada com sucesso",
-                    "foto" => $fotoNome,
-                    "foto_url" => "/uploads/perfis/" . $fotoNome
-                ];
-            } else {
-                return ["status" => 500, "message" => "Erro ao atualizar foto"];
-            }
-        } catch (Exception $e) {
-            error_log(" DEBUG - Exceção ao atualizar foto: " . $e->getMessage());
-            return ["status" => 500, "message" => "Erro interno: " . $e->getMessage()];
+        // ✅ VERIFICAR SE O ARQUIVO ESTÁ CHEGANDO CORRETAMENTE
+        $arquivoFoto = null;
+        
+        // Primeiro verifica em $_FILES (que é onde o FormData chega)
+        if (!empty($_FILES['foto_perfil'])) {
+            error_log("✅ DEBUG - foto_perfil encontrado em _FILES");
+            $arquivoFoto = $_FILES['foto_perfil'];
+        } 
+        // Depois verifica no parâmetro $arquivos (para compatibilidade)
+        elseif (!empty($arquivos['foto_perfil'])) {
+            error_log("✅ DEBUG - foto_perfil encontrado nos arquivos");
+            $arquivoFoto = $arquivos['foto_perfil'];
+        } 
+        else {
+            error_log("❌ DEBUG - foto_perfil não encontrado");
+            error_log("❌ DEBUG - Conteúdo de _FILES: " . print_r($_FILES, true));
+            error_log("❌ DEBUG - Conteúdo de arquivos: " . print_r($arquivos, true));
+            return ["status" => 400, "message" => "Nenhuma foto enviada"];
         }
+
+        error_log("📸 DEBUG - Processando arquivo: " . print_r($arquivoFoto, true));
+
+        // ✅ VALIDAR SE O ARQUIVO TEM DADOS VÁLIDOS
+        if (empty($arquivoFoto['name']) || empty($arquivoFoto['tmp_name']) || $arquivoFoto['size'] === 0) {
+            error_log("❌ DEBUG - Arquivo inválido ou vazio");
+            return ["status" => 400, "message" => "Arquivo de foto inválido"];
+        }
+
+        $fotoNome = $this->processarUploadFoto($arquivoFoto);
+        if (!$fotoNome) {
+            return ["status" => 400, "message" => "Erro no upload da foto"];
+        }
+
+        // Determina tabela e campo da foto
+        if ($user['tipo'] === 'usuario') {
+            $table = 'usuarios';
+            $idField = 'id_usuario';
+            $campoFoto = 'foto_perfil';
+            $idValue = $user['id_usuario'] ?? $user['id'] ?? null;
+        } else {
+            $table = 'asilos';
+            $idField = 'id_asilo';
+            $campoFoto = 'logo';
+            $idValue = $user['id_asilo'] ?? $user['id'] ?? null;
+        }
+
+        if (!$idValue) {
+            return ["status" => 401, "message" => "ID do usuário não encontrado"];
+        }
+
+        // Atualiza apenas a foto
+        $sql = "UPDATE $table SET $campoFoto = :foto, atualizado_em = CURRENT_TIMESTAMP WHERE $idField = :id";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":foto", $fotoNome);
+        $stmt->bindParam(":id", $idValue);
+
+        if ($stmt->execute()) {
+            error_log("✅ DEBUG - Foto atualizada com sucesso: " . $fotoNome);
+            
+            // ✅ CORREÇÃO: Retornar URL completa
+            $fotoUrl = "/uploads/perfis/" . $fotoNome;
+            
+            return [
+                "status" => 200,
+                "message" => "Foto atualizada com sucesso",
+                "foto" => $fotoNome,
+                "foto_url" => $fotoUrl  // ✅ URL completa
+            ];
+        } else {
+            $errorInfo = $stmt->errorInfo();
+            error_log("❌ DEBUG - Erro ao atualizar foto: " . print_r($errorInfo, true));
+            return ["status" => 500, "message" => "Erro ao atualizar foto"];
+        }
+
+    } catch (Exception $e) {
+        error_log("💥 DEBUG - Exceção ao atualizar foto: " . $e->getMessage());
+        return ["status" => 500, "message" => "Erro interno: " . $e->getMessage()];
     }
+}
 }
