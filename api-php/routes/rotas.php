@@ -236,9 +236,8 @@ $routes = [
     }],
 
     // Vídeos - upload (requer autenticação)
-// CORREÇÃO: A rota de upload deve ser POST /api/videos (já existe, mas vamos verificar)
+// CORREÇÃO: A rota de upload deve ser POST /api/videos
 
-// Na definição de rotas, verifique se esta rota existe:
 // Rota de upload de vídeos - CORRIGIDA
 ['POST', '/api/videos', function () use ($videoController) {
     // Habilita exibição de erros para debug
@@ -271,6 +270,40 @@ $routes = [
 // Buscar perfil completo
 ['GET', '/api/perfil', function () use ($editarPerfilController) {
     return safeCall(fn() => $editarPerfilController->buscarPerfil());
+}],
+
+// Rota de debug do token e autenticação
+['GET', '/api/debug/auth', function () {
+    $headers = getallheaders();
+    $token = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+    
+    if (!$token) {
+        return ['status' => 400, 'message' => 'Token não enviado'];
+    }
+    
+    $token = str_replace('Bearer ', '', $token);
+    
+    // Decodifica manualmente para ver a estrutura
+    $parts = explode('.', $token);
+    if (count($parts) !== 3) {
+        return ['status' => 400, 'message' => 'Token inválido'];
+    }
+    
+    $payload = $parts[1];
+    $payload = str_replace(['-', '_'], ['+', '/'], $payload);
+    $mod4 = strlen($payload) % 4;
+    if ($mod4) {
+        $payload .= str_repeat('=', 4 - $mod4);
+    }
+    
+    $payloadDecoded = base64_decode($payload);
+    $payloadData = json_decode($payloadDecoded, true);
+    
+    return [
+        'status' => 200,
+        'token_info' => $payloadData,
+        'auth_middleware_result' => AuthMiddleware::requireAuth()
+    ];
 }],
 
 ];

@@ -3,10 +3,10 @@ require_once __DIR__ . '/connection.php';
 
 class ConfigController {
     public function testarConexaoDB() {
-        global $conn; // ✅ Use a conexão existente
+        global $conn; // Usa a variável de conexão global
         
         try {
-            // Testa a conexão executando uma query simples
+            // Testa a conexão executando uma consulta simples
             $stmt = $conn->query("SELECT 1");
             echo json_encode(["success" => true, "message" => "Conexão com o banco de dados estabelecida com sucesso!"]);
         } catch (PDOException $e) {
