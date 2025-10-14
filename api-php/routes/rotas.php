@@ -239,7 +239,21 @@ $routes = [
 // CORREÇÃO: A rota de upload deve ser POST /api/videos
 
 // Rota de upload de vídeos - CORRIGIDA
+
+// Vídeos - upload (requer autenticação)
 ['POST', '/api/videos', function () use ($videoController) {
+    // FORÇA headers CORS ANTES de qualquer processamento
+    header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Allow-Methods: POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+    
+    // Trata requisição OPTIONS (preflight)
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit();
+    }
+    
     // Habilita exibição de erros para debug
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
@@ -254,6 +268,7 @@ $routes = [
     
     return safeCall(fn() => $videoController->uploadVideo($user, $_FILES, $_POST));
 }],
+
 
     // Vídeos - deletar (apenas autor)
     ['DELETE', '/api/videos/:id', function () use ($videoController) {
