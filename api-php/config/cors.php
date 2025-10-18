@@ -1,29 +1,36 @@
 <?php
-// config/cors.php - VERSÃO SUPER PERMISSIVA PARA DEBUG
+// config/cors.php — versão inteligente (aceita produção e localhost)
 
 $allowedOrigins = [
     'https://www.happyidosos.com.br',
     'https://happyidosos.com.br',
-    'c',
-    'http://localhost:3000'
+    'http://localhost',
+    'http://localhost:3000',
+    'http://localhost:5173'
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-// SEMPRE permite o domínio principal, mesmo sem HTTP_ORIGIN
-header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+// Verifica se a origem é permitida
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    // Origem não reconhecida — opcional para segurança
+    header("Access-Control-Allow-Origin: https://www.happyidosos.com.br");
+}
+
+header("Vary: Origin"); // Garante cache correto quando várias origens são usadas
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, Access-Control-Allow-Headers");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token");
 header("Access-Control-Expose-Headers: Authorization, Content-Length");
 header("Access-Control-Max-Age: 86400");
 
-// Log para debug (remove depois)
-error_log("🎯 CORS Headers enviados para: " . $origin);
+// Log para debug (opcional, pode remover depois)
+error_log("🎯 CORS para origem: " . ($origin ?: 'NENHUMA'));
 
-// Responde imediatamente para requisições OPTIONS (Preflight)
+// Responde imediatamente para requisições OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    error_log("🎯 Preflight OPTIONS recebido");
     http_response_code(200);
     exit();
 }
