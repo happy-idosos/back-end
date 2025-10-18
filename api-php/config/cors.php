@@ -4,7 +4,7 @@
 $allowedOrigins = [
     'https://www.happyidosos.com.br',
     'https://happyidosos.com.br',
-    'http://localhost:5173',
+    'c',
     'http://localhost:3000'
 ];
 
